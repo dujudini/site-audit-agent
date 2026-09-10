@@ -76,6 +76,10 @@ No agent framework. The loop is under 100 lines in `agent.py`, written by
 hand so it reads top to bottom. That's the part a framework would have
 hidden.
 
+Some tools are conditional: `wordpress_probe` and `vuln_check` only appear
+as options once `tech_detect` confirms the site runs WordPress. An
+irrelevant tool is never offered to the model.
+
 ## How the loop decides
 
 Real trace from the run above (`*` marks a decision explicitly conditioned on
