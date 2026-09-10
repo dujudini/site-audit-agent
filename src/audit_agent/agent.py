@@ -34,6 +34,7 @@ from audit_agent.tools.http_probe import spec as http_probe_spec
 from audit_agent.tools.perf_probe import spec as perf_probe_spec
 from audit_agent.tools.tech_detect import spec as tech_detect_spec
 from audit_agent.tools.tls_check import spec as tls_check_spec
+from audit_agent.tools.vuln_check import spec as vuln_check_spec
 from audit_agent.tools.wordpress_probe import spec as wordpress_probe_spec
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
@@ -142,6 +143,7 @@ async def run_agent(url: str, settings: Settings | None = None) -> dict[str, Any
         # tool must not appear as an option (CLAUDE.md section 9).
         if state["collected"].get("tech_detect", {}).get("is_wordpress"):
             registry.register(wordpress_probe_spec())
+            registry.register(vuln_check_spec(settings.wordfence_feed_path))
 
         # Steps 2-5 — the decision loop.
         messages: list[dict[str, Any]] = [

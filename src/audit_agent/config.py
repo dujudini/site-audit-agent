@@ -29,6 +29,7 @@ class Settings:
     model_decision: str
     model_cheap: str
     google_pagespeed_key: str
+    wordfence_feed_path: str
 
     max_iterations: int
     max_cost_usd: float
@@ -49,6 +50,7 @@ def load_settings() -> Settings:
         model_decision=_env_str("AUDIT_AGENT_MODEL_DECISION", "claude-sonnet-5"),
         model_cheap=_env_str("AUDIT_AGENT_MODEL_CHEAP", "claude-haiku-4-5-20251001"),
         google_pagespeed_key=_env_str("GOOGLE_PAGESPEED_KEY", ""),
+        wordfence_feed_path=_env_str("WORDFENCE_FEED_PATH", "wordfence_feed.json"),
         max_iterations=_env_int("AUDIT_AGENT_MAX_ITERATIONS", 12),
         max_cost_usd=_env_float("AUDIT_AGENT_MAX_COST_USD", 0.50),
         max_tool_calls=_env_int("AUDIT_AGENT_MAX_TOOL_CALLS", 30),

@@ -61,7 +61,7 @@ def _settings(**overrides: Any) -> Settings:
         anthropic_api_key="test-key",
         model_decision="claude-sonnet-5",
         model_cheap="claude-haiku-4-5-20251001",
-        google_pagespeed_key="",
+        google_pagespeed_key="", wordfence_feed_path="nonexistent.json",
         max_iterations=5,
         max_cost_usd=1.0,
         max_tool_calls=10,

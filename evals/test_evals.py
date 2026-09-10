@@ -55,9 +55,15 @@ class FakeAnthropic:
 def _settings() -> Settings:
     return Settings(
         anthropic_api_key="cassette-replay-needs-no-real-key",
-        model_decision="claude-sonnet-5", model_cheap="claude-haiku-4-5-20251001",
-        google_pagespeed_key="", max_iterations=12, max_cost_usd=0.50,
-        max_tool_calls=30, timeout_global_s=180, timeout_tool_s=15,
+        model_decision="claude-sonnet-5",
+        model_cheap="claude-haiku-4-5-20251001",
+        google_pagespeed_key="",
+        wordfence_feed_path="nonexistent.json",
+        max_iterations=12,
+        max_cost_usd=0.50,
+        max_tool_calls=30,
+        timeout_global_s=180,
+        timeout_tool_s=15,
     )
 
 
@@ -115,9 +121,7 @@ async def test_eval_case(case: dict) -> None:
     for spec in case.get("must_not_find", []):
         # info severity is "checked, all good" (see module docstring) — it
         # isn't a reported problem, so it doesn't violate a must_not_find.
-        matching = [
-            f for f in findings if f.severity.value != "info" and _matches_spec(f, spec)
-        ]
+        matching = [f for f in findings if f.severity.value != "info" and _matches_spec(f, spec)]
         assert matching == [], f"{case['name']}: unexpected finding(s) matching {spec}: {matching}"
 
 

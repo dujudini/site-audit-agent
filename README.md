@@ -149,6 +149,20 @@ per host, and sends an honest, identifiable `User-Agent`. `wordpress_probe`
 only exists as an option for the model once `tech_detect` actually confirms
 WordPress. An irrelevant tool is never offered.
 
+## Known-CVE cross-referencing (optional)
+
+`vuln_check` matches WordPress core/plugin/theme versions against the
+Wordfence Intelligence vulnerability feed, free but requiring an API key.
+It's registered alongside `wordpress_probe`, so it only ever appears once
+WordPress is confirmed, and it reports `skipped` instead of failing if the
+feed file isn't present. Download it once (refresh occasionally, it isn't
+auto-updated):
+
+```bash
+export WORDFENCE_API_KEY="..."  # wordfence.com > account > Integrations
+python scripts/download_wordfence_feed.py
+```
+
 ## What broke and how I fixed it
 
 - **A Windows console can't print the emoji I used for severity labels.**
