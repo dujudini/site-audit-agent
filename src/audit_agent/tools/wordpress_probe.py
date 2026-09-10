@@ -20,7 +20,10 @@ SCHEMA = {
     "required": ["url"],
 }
 
-README_VERSION_RE = re.compile(r"Version\s+([\d.]+)", re.I)
+# Requires a dotted major.minor so "released under GPL version 2" (real
+# text in modern readme.html files) can't be mistaken for the WP version,
+# which appears there as plain text without a dot in some GPL mentions.
+README_VERSION_RE = re.compile(r"Version\s+(\d+\.\d+(?:\.\d+)?)", re.I)
 ASSET_VERSION_RE = re.compile(r"[?&]ver=([\d.]+)")
 PLUGIN_RE = re.compile(r"/wp-content/plugins/([a-z0-9\-_]+)/", re.I)
 THEME_RE = re.compile(r"/wp-content/themes/([a-z0-9\-_]+)/", re.I)

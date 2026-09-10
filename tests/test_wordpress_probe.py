@@ -39,6 +39,38 @@ async def test_wordpress_probe_detects_plugins_and_exposed_users() -> None:
 
 @pytest.mark.asyncio
 @respx.mock
+async def test_wordpress_probe_ignores_gpl_version_mention() -> None:
+    """Modern readme.html wraps the core version requirement in HTML tags
+    (breaking a naive "Version X" match) but states the GPL license version
+    as plain text ("...version 2 or..."). A real audit against a live site
+    hit this: the old regex reported core_version_exposed="2"."""
+    respx.get("https://gplmention.example.com/").mock(
+        return_value=httpx.Response(200, text="<html></html>")
+    )
+    respx.get("https://gplmention.example.com/readme.html").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                "<li>PHP version <strong>7.4</strong> or greater.</li>"
+                "<p>WordPress is free software, released under the terms of "
+                "the GPL (GNU General Public License) version 2 or later.</p>"
+            ),
+        )
+    )
+    respx.get("https://gplmention.example.com/wp-json/wp/v2/users").mock(
+        return_value=httpx.Response(401)
+    )
+    respx.get("https://gplmention.example.com/xmlrpc.php").mock(return_value=httpx.Response(403))
+
+    async with httpx.AsyncClient() as client:
+        result = await wordpress_probe("https://gplmention.example.com", client)
+
+    assert result["core_version_exposed"] is None
+    assert result["readme_html_public"] is True
+
+
+@pytest.mark.asyncio
+@respx.mock
 async def test_wordpress_probe_reports_hardened_site() -> None:
     respx.get("https://hardened.example.com/").mock(
         return_value=httpx.Response(200, text="<html></html>")
