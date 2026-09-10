@@ -1,0 +1,45 @@
+{
+  "model": "claude-sonnet-5",
+  "input_tokens": 2005,
+  "output_tokens": 667,
+  "tool_use_input": {
+    "findings": [
+      {
+        "id": "tls-cert-expired",
+        "title": "TLS certificate has expired",
+        "category": "security",
+        "severity": "critical",
+        "explanation": "The site's SSL/TLS certificate has already expired, causing browsers to show visitors a security warning before they can even reach the site. This breaks trust with customers and can also cause many browsers and automated tools to refuse the connection entirely.",
+        "recommendation": "Renew the TLS certificate immediately and set up auto-renewal to prevent this from happening again.",
+        "effort": "quick",
+        "evidence_tools": [
+          "tls_check"
+        ]
+      },
+      {
+        "id": "dmarc-missing",
+        "title": "No DMARC record configured",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for attackers to spoof emails that appear to come from this domain, which can be used for phishing against customers or partners.",
+        "recommendation": "Add a DMARC TXT record (starting with a monitoring policy like p=none) and gradually move to enforcement.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      },
+      {
+        "id": "security-headers-present",
+        "title": "Strong security headers already in place",
+        "category": "security",
+        "severity": "info",
+        "explanation": "The site is sending good security headers, including Content-Security-Policy, Strict-Transport-Security (HSTS), X-Frame-Options, X-Content-Type-Options, and Referrer-Policy. This is a healthy sign and reduces risk from common web attacks like clickjacking and content sniffing.",
+        "recommendation": "No action needed; continue maintaining these headers when the server configuration changes.",
+        "effort": "quick",
+        "evidence_tools": [
+          "http_probe"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "http_probe": {
+    "url": "https://slow.example.com",
+    "reachable": true,
+    "final_url": "https://slow.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {"server": "nginx", "cache-control": "no-store"},
+    "ttfb_ms": 1450.0,
+    "content_length": 30000
+  },
+  "dns_check": {
+    "domain": "slow.example.com",
+    "a": ["203.0.113.99"],
+    "aaaa": [],
+    "mx": ["10 mail.slow.example.com."],
+    "txt": ["\"v=spf1 -all\"", "\"v=DMARC1; p=quarantine\""],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": true,
+    "has_dmarc": true
+  },
+  "tls_check": {
+    "domain": "slow.example.com",
+    "reachable": true,
+    "issuer": "Let's Encrypt",
+    "not_before": "2026-08-01T00:00:00+00:00",
+    "not_after": "2026-10-30T00:00:00+00:00",
+    "days_left": 60,
+    "protocol": "TLSv1.3"
+  },
+  "tech_detect": {
+    "url": "https://slow.example.com",
+    "reachable": true,
+    "server_header": "nginx",
+    "x_powered_by": null,
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": [],
+    "analytics_detected": []
+  }
+}

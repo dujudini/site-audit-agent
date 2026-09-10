@@ -1,0 +1,54 @@
+[project]
+name = "audit-agent"
+version = "0.1.0"
+description = "Adaptive agent that audits a website from a URL: passive collection, LLM-driven investigation loop, evidence-backed findings."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "httpx>=0.27",
+    "anthropic>=0.40",
+    "pydantic>=2.9",
+    "typer>=0.13",
+    "rich>=13.9",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+audit-agent = "audit_agent.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "mypy>=1.13",
+    "ruff>=0.7",
+    "respx>=0.21",
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/audit_agent"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# B008: typer's `= typer.Option(...)` default is the documented, idiomatic
+# way to declare CLI options — not the mutable-default footgun the rule
+# exists for.
+per-file-ignores = { "src/audit_agent/cli.py" = ["B008"] }
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "evals"]
+asyncio_mode = "auto"

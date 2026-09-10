@@ -1,0 +1,46 @@
+{
+  "http_probe": {
+    "url": "https://expired-tls.example.com",
+    "reachable": true,
+    "final_url": "https://expired-tls.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {
+      "server": "nginx",
+      "content-security-policy": "default-src 'self'",
+      "strict-transport-security": "max-age=31536000",
+      "x-frame-options": "SAMEORIGIN",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin"
+    },
+    "ttfb_ms": 210.0,
+    "content_length": 8000
+  },
+  "dns_check": {
+    "domain": "expired-tls.example.com",
+    "a": ["203.0.113.10"],
+    "aaaa": [],
+    "mx": [],
+    "txt": ["\"v=spf1 -all\""],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": true,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "expired-tls.example.com",
+    "reachable": false,
+    "error": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1010)"
+  },
+  "tech_detect": {
+    "url": "https://expired-tls.example.com",
+    "reachable": true,
+    "server_header": "nginx",
+    "x_powered_by": null,
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": [],
+    "analytics_detected": []
+  }
+}

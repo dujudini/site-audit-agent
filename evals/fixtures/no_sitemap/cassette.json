@@ -1,0 +1,81 @@
+{
+  "model": "claude-sonnet-5",
+  "input_tokens": 2086,
+  "output_tokens": 1232,
+  "tool_use_input": {
+    "findings": [
+      {
+        "id": "dmarc-missing",
+        "title": "No DMARC record found for domain",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for scammers to send emails that look like they came from your business (email spoofing), which can be used for phishing attacks against customers or staff.",
+        "recommendation": "Add a DMARC TXT record (e.g. starting with 'v=DMARC1; p=quarantine;') to the DNS settings for acme-dental.example.com.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      },
+      {
+        "id": "no-sitemap",
+        "title": "No sitemap.xml found",
+        "category": "seo",
+        "severity": "low",
+        "explanation": "The site does not have a sitemap.xml file, even though a robots.txt file exists. A sitemap helps search engines find and index all the pages on the site, which can improve how well the site shows up in search results.",
+        "recommendation": "Generate a sitemap.xml file and reference it in robots.txt, then submit it to Google Search Console.",
+        "effort": "quick",
+        "evidence_tools": [
+          "content_probe"
+        ]
+      },
+      {
+        "id": "missing-meta-description",
+        "title": "Homepage missing meta description",
+        "category": "seo",
+        "severity": "low",
+        "explanation": "The homepage has no meta description tag. Search engines often use this text as the snippet shown under the page title in search results, so missing it can lead to less compelling or less relevant search listings.",
+        "recommendation": "Add a concise, unique meta description (under ~160 characters) to the homepage summarizing what the business offers.",
+        "effort": "quick",
+        "evidence_tools": [
+          "content_probe"
+        ]
+      },
+      {
+        "id": "missing-canonical",
+        "title": "Homepage missing canonical tag",
+        "category": "seo",
+        "severity": "low",
+        "explanation": "There is no canonical URL tag on the homepage. Canonical tags help search engines understand which URL is the authoritative version of a page, which reduces the risk of duplicate content issues.",
+        "recommendation": "Add a canonical link tag pointing to the preferred homepage URL.",
+        "effort": "quick",
+        "evidence_tools": [
+          "content_probe"
+        ]
+      },
+      {
+        "id": "missing-security-headers",
+        "title": "Common security headers not present",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The server response only shows a generic 'nginx' header with no security-related headers observed (such as those that prevent clickjacking or enforce HTTPS). Without these, the site is more exposed to certain browser-based attacks.",
+        "recommendation": "Configure the web server to send standard security headers like Strict-Transport-Security, X-Content-Type-Options, and X-Frame-Options.",
+        "effort": "moderate",
+        "evidence_tools": [
+          "http_probe"
+        ]
+      },
+      {
+        "id": "tls-healthy",
+        "title": "TLS certificate valid and modern protocol in use",
+        "category": "security",
+        "severity": "info",
+        "explanation": "The site's TLS certificate is valid for 60 more days and uses TLSv1.3, a modern and secure encryption protocol. No immediate action needed.",
+        "recommendation": "Continue automated renewal of the Let's Encrypt certificate before expiry.",
+        "effort": "quick",
+        "evidence_tools": [
+          "tls_check"
+        ]
+      }
+    ]
+  }
+}

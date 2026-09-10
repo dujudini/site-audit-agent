@@ -1,0 +1,28 @@
+{
+  "http_probe": {
+    "url": "https://down.example.com",
+    "reachable": false,
+    "error": "ConnectError: [Errno 111] Connection refused"
+  },
+  "dns_check": {
+    "domain": "down.example.com",
+    "a": ["203.0.113.200"],
+    "aaaa": [],
+    "mx": [],
+    "txt": [],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": false,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "down.example.com",
+    "reachable": false,
+    "error": "TimeoutError: connection timed out"
+  },
+  "tech_detect": {
+    "url": "https://down.example.com",
+    "reachable": false,
+    "error": "ConnectError: [Errno 111] Connection refused"
+  }
+}

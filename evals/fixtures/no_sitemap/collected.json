@@ -1,0 +1,53 @@
+{
+  "http_probe": {
+    "url": "https://acme-dental.example.com",
+    "reachable": true,
+    "final_url": "https://acme-dental.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {"server": "nginx"},
+    "ttfb_ms": 190.0,
+    "content_length": 15000
+  },
+  "dns_check": {
+    "domain": "acme-dental.example.com",
+    "a": ["203.0.113.30"],
+    "aaaa": [],
+    "mx": ["10 mail.acme-dental.example.com."],
+    "txt": ["\"v=spf1 -all\""],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": true,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "acme-dental.example.com",
+    "reachable": true,
+    "issuer": "Let's Encrypt",
+    "not_before": "2026-08-01T00:00:00+00:00",
+    "not_after": "2026-10-30T00:00:00+00:00",
+    "days_left": 60,
+    "protocol": "TLSv1.3"
+  },
+  "tech_detect": {
+    "url": "https://acme-dental.example.com",
+    "reachable": true,
+    "server_header": "nginx",
+    "x_powered_by": null,
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": [],
+    "analytics_detected": []
+  },
+  "content_probe": {
+    "url": "https://acme-dental.example.com",
+    "reachable": true,
+    "title": "Acme Dental — Home",
+    "meta_description": null,
+    "canonical": null,
+    "heading_counts": {"h1": 1},
+    "has_robots_txt": true,
+    "has_sitemap_xml": false
+  }
+}

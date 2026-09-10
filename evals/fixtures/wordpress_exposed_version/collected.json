@@ -1,0 +1,52 @@
+{
+  "http_probe": {
+    "url": "https://old-wp.example.com",
+    "reachable": true,
+    "final_url": "https://old-wp.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {"server": "Apache", "x-powered-by": "PHP/7.2.1"},
+    "ttfb_ms": 320.0,
+    "content_length": 45000
+  },
+  "dns_check": {
+    "domain": "old-wp.example.com",
+    "a": ["203.0.113.55"],
+    "aaaa": [],
+    "mx": ["10 mail.old-wp.example.com."],
+    "txt": ["\"v=spf1 -all\""],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": true,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "old-wp.example.com",
+    "reachable": true,
+    "issuer": "Let's Encrypt",
+    "not_before": "2026-08-01T00:00:00+00:00",
+    "not_after": "2026-10-30T00:00:00+00:00",
+    "days_left": 60,
+    "protocol": "TLSv1.2"
+  },
+  "tech_detect": {
+    "url": "https://old-wp.example.com",
+    "reachable": true,
+    "server_header": "Apache",
+    "x_powered_by": "PHP/7.2.1",
+    "generator_meta": "WordPress 5.2",
+    "is_wordpress": true,
+    "frameworks_detected": ["WordPress"],
+    "analytics_detected": []
+  },
+  "wordpress_probe": {
+    "url": "https://old-wp.example.com",
+    "core_version_exposed": "5.2",
+    "plugins_detected": ["contact-form-7", "yoast-seo"],
+    "themes_detected": ["twentynineteen"],
+    "rest_users_exposed_count": 3,
+    "xmlrpc_enabled": true,
+    "readme_html_public": true
+  }
+}

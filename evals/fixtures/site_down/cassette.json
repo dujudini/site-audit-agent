@@ -1,0 +1,58 @@
+{
+  "model": "claude-sonnet-5",
+  "input_tokens": 1706,
+  "output_tokens": 807,
+  "tool_use_input": {
+    "findings": [
+      {
+        "id": "site-unreachable",
+        "title": "Website is not reachable over HTTPS",
+        "category": "availability",
+        "severity": "critical",
+        "explanation": "The site refused the connection when trying to load it over HTTPS, and the TLS check also timed out. This means visitors cannot reach the website at all right now.",
+        "recommendation": "Check that the web server process is running and listening on the correct ports, and verify firewall/security group rules aren't blocking traffic.",
+        "effort": "moderate",
+        "evidence_tools": [
+          "http_probe",
+          "tls_check"
+        ]
+      },
+      {
+        "id": "tls-unverifiable",
+        "title": "TLS certificate status could not be checked",
+        "category": "security",
+        "severity": "high",
+        "explanation": "Because the server isn't responding, we couldn't verify whether the SSL/TLS certificate is valid or expiring soon. This is a blind spot until the site is back online.",
+        "recommendation": "Once the server is restored, re-run a TLS check to confirm the certificate is valid and not close to expiry.",
+        "effort": "quick",
+        "evidence_tools": [
+          "tls_check"
+        ]
+      },
+      {
+        "id": "dns-resolves-ok",
+        "title": "DNS is resolving correctly despite the outage",
+        "category": "availability",
+        "severity": "info",
+        "explanation": "The domain's DNS records are set up properly and point to an IP address, so the problem is with the server itself, not with domain name lookup.",
+        "recommendation": "No action needed for DNS; focus troubleshooting on the web/application server.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      },
+      {
+        "id": "no-spf-dmarc",
+        "title": "No SPF or DMARC email authentication records found",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The domain has no SPF or DMARC TXT records. Without these, it's easier for attackers to send fake emails that appear to come from this domain (phishing/spoofing).",
+        "recommendation": "Add SPF and DMARC TXT records for the domain, even if it doesn't send mail directly, to prevent spoofing.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      }
+    ]
+  }
+}

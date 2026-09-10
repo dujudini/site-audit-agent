@@ -1,0 +1,47 @@
+{
+  "http_probe": {
+    "url": "https://old-domain.example.com",
+    "reachable": true,
+    "final_url": "https://new-domain.example.com/home",
+    "status_code": 200,
+    "redirect_chain": [
+      "https://old-domain.example.com",
+      "http://new-domain.example.com",
+      "https://new-domain.example.com"
+    ],
+    "redirect_count": 3,
+    "headers": {"server": "nginx"},
+    "ttfb_ms": 260.0,
+    "content_length": 9000
+  },
+  "dns_check": {
+    "domain": "old-domain.example.com",
+    "a": ["203.0.113.40"],
+    "aaaa": [],
+    "mx": [],
+    "txt": [],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": false,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "old-domain.example.com",
+    "reachable": true,
+    "issuer": "Let's Encrypt",
+    "not_before": "2026-08-01T00:00:00+00:00",
+    "not_after": "2026-10-30T00:00:00+00:00",
+    "days_left": 60,
+    "protocol": "TLSv1.3"
+  },
+  "tech_detect": {
+    "url": "https://old-domain.example.com",
+    "reachable": true,
+    "server_header": "nginx",
+    "x_powered_by": null,
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": [],
+    "analytics_detected": []
+  }
+}

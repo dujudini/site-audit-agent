@@ -1,0 +1,69 @@
+{
+  "model": "claude-sonnet-5",
+  "input_tokens": 2171,
+  "output_tokens": 1233,
+  "tool_use_input": {
+    "findings": [
+      {
+        "id": "missing-security-headers",
+        "title": "All major security headers missing",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The site does not send any of the common browser security headers (Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Without these, browsers apply weaker default protections, making the site more vulnerable to clickjacking, content-sniffing attacks, and man-in-the-middle downgrade attacks.",
+        "recommendation": "Add the missing security headers at the web server or application level, starting with Strict-Transport-Security, X-Content-Type-Options, and X-Frame-Options.",
+        "effort": "quick",
+        "evidence_tools": [
+          "headers_audit"
+        ]
+      },
+      {
+        "id": "insecure-session-cookie",
+        "title": "Session cookie lacks Secure, HttpOnly, and SameSite flags",
+        "category": "security",
+        "severity": "high",
+        "explanation": "The PHPSESSID cookie, which identifies logged-in user sessions, is missing the Secure, HttpOnly, and SameSite attributes. This means it could be intercepted over an unencrypted connection, read by malicious scripts on the page, or sent along with cross-site requests, increasing the risk of session hijacking.",
+        "recommendation": "Configure the application/server to set Secure, HttpOnly, and SameSite=Strict (or Lax) on the PHPSESSID cookie.",
+        "effort": "quick",
+        "evidence_tools": [
+          "headers_audit"
+        ]
+      },
+      {
+        "id": "no-spf-dmarc",
+        "title": "No SPF or DMARC records for the domain",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The domain has an MX record (so it can receive email) but no SPF or DMARC records. Without these, it's easier for attackers to send forged emails that appear to come from this domain, which can be used for phishing against customers or partners.",
+        "recommendation": "Publish an SPF record listing authorized mail senders and a DMARC record specifying handling of unauthenticated mail.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      },
+      {
+        "id": "php-version-disclosed",
+        "title": "Server exposes outdated PHP version in headers",
+        "category": "security",
+        "severity": "medium",
+        "explanation": "The X-Powered-By header reveals the site is running PHP/7.4.3. This version is old and no longer receiving official security updates, and publicly advertising the version makes it easier for attackers to target known vulnerabilities for that version.",
+        "recommendation": "Upgrade PHP to a currently supported version and disable the X-Powered-By header in server configuration.",
+        "effort": "moderate",
+        "evidence_tools": [
+          "tech_detect"
+        ]
+      },
+      {
+        "id": "tls-cert-expiring",
+        "title": "TLS certificate expires in 60 days",
+        "category": "security",
+        "severity": "info",
+        "explanation": "The site's TLS certificate is valid and uses TLS 1.3, but it will expire in 60 days. This is not urgent yet, but if renewal is missed, the site would become inaccessible or show security warnings to visitors.",
+        "recommendation": "Confirm automatic renewal is configured, or set a reminder to renew before expiry.",
+        "effort": "quick",
+        "evidence_tools": [
+          "tls_check"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,59 @@
+- name: expired_tls
+  fixture: fixtures/expired_tls
+  must_find:
+    - category: security
+      severity: critical
+      matches: "certificate"
+  must_not_find:
+    - category: seo
+
+- name: no_security_headers
+  fixture: fixtures/no_security_headers
+  must_find:
+    - category: security
+      matches: "header"
+  must_not_find: []
+
+- name: wordpress_exposed_version
+  fixture: fixtures/wordpress_exposed_version
+  must_find:
+    - matches: "5.2"
+    - matches: "user"
+  must_not_find: []
+
+- name: high_ttfb
+  fixture: fixtures/high_ttfb
+  must_find:
+    - category: performance
+      matches: "ttfb"
+  must_not_find:
+    - category: security
+
+- name: no_sitemap
+  fixture: fixtures/no_sitemap
+  must_find:
+    - category: seo
+      severity: low
+      matches: "sitemap"
+  must_not_find:
+    - category: availability
+
+- name: redirect_chain
+  fixture: fixtures/redirect_chain
+  must_find:
+    - matches: "redirect"
+  must_not_find: []
+
+- name: healthy_site
+  fixture: fixtures/healthy_site
+  must_find: []
+  must_not_find_any: true
+
+- name: site_down
+  fixture: fixtures/site_down
+  must_find:
+    - category: availability
+      severity: critical
+  must_not_find:
+    - category: seo
+    - category: performance

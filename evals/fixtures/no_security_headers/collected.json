@@ -1,0 +1,54 @@
+{
+  "http_probe": {
+    "url": "https://bare-headers.example.com",
+    "reachable": true,
+    "final_url": "https://bare-headers.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {"server": "Apache", "content-type": "text/html"},
+    "ttfb_ms": 180.0,
+    "content_length": 12000
+  },
+  "dns_check": {
+    "domain": "bare-headers.example.com",
+    "a": ["198.51.100.20"],
+    "aaaa": [],
+    "mx": ["10 mail.bare-headers.example.com."],
+    "txt": [],
+    "ns": ["ns1.example-registrar.com.", "ns2.example-registrar.com."],
+    "cdn_guess": null,
+    "has_spf": false,
+    "has_dmarc": false
+  },
+  "tls_check": {
+    "domain": "bare-headers.example.com",
+    "reachable": true,
+    "issuer": "Let's Encrypt",
+    "not_before": "2026-08-01T00:00:00+00:00",
+    "not_after": "2026-10-30T00:00:00+00:00",
+    "days_left": 60,
+    "protocol": "TLSv1.3"
+  },
+  "tech_detect": {
+    "url": "https://bare-headers.example.com",
+    "reachable": true,
+    "server_header": "Apache",
+    "x_powered_by": "PHP/7.4.3",
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": [],
+    "analytics_detected": []
+  },
+  "headers_audit": {
+    "url": "https://bare-headers.example.com",
+    "reachable": true,
+    "missing_security_headers": [
+      "Content-Security-Policy", "Strict-Transport-Security (HSTS)",
+      "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy",
+      "Permissions-Policy"
+    ],
+    "present_security_headers": [],
+    "cookies": [{"name": "PHPSESSID", "secure": false, "httponly": false, "samesite": false}]
+  }
+}

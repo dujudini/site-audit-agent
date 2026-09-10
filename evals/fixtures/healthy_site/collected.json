@@ -1,0 +1,72 @@
+{
+  "http_probe": {
+    "url": "https://healthy.example.com",
+    "reachable": true,
+    "final_url": "https://healthy.example.com",
+    "status_code": 200,
+    "redirect_chain": [],
+    "redirect_count": 0,
+    "headers": {
+      "server": "cloudflare",
+      "content-security-policy": "default-src 'self'",
+      "strict-transport-security": "max-age=63072000; includeSubDomains",
+      "x-frame-options": "SAMEORIGIN",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "permissions-policy": "geolocation=()"
+    },
+    "ttfb_ms": 95.0,
+    "content_length": 20000
+  },
+  "dns_check": {
+    "domain": "healthy.example.com",
+    "a": ["104.16.1.1"],
+    "aaaa": ["2606:4700::1"],
+    "mx": ["10 mail.healthy.example.com."],
+    "txt": ["\"v=spf1 include:_spf.google.com ~all\"", "\"v=DMARC1; p=quarantine\""],
+    "ns": ["ns1.cloudflare.com.", "ns2.cloudflare.com."],
+    "cdn_guess": "Cloudflare",
+    "has_spf": true,
+    "has_dmarc": true
+  },
+  "tls_check": {
+    "domain": "healthy.example.com",
+    "reachable": true,
+    "issuer": "Google Trust Services",
+    "not_before": "2026-07-01T00:00:00+00:00",
+    "not_after": "2026-12-29T00:00:00+00:00",
+    "days_left": 150,
+    "protocol": "TLSv1.3"
+  },
+  "tech_detect": {
+    "url": "https://healthy.example.com",
+    "reachable": true,
+    "server_header": "cloudflare",
+    "x_powered_by": null,
+    "generator_meta": null,
+    "is_wordpress": false,
+    "frameworks_detected": ["Next.js"],
+    "analytics_detected": []
+  },
+  "headers_audit": {
+    "url": "https://healthy.example.com",
+    "reachable": true,
+    "missing_security_headers": [],
+    "present_security_headers": [
+      "Content-Security-Policy", "Strict-Transport-Security (HSTS)",
+      "X-Frame-Options", "X-Content-Type-Options", "Referrer-Policy",
+      "Permissions-Policy"
+    ],
+    "cookies": []
+  },
+  "content_probe": {
+    "url": "https://healthy.example.com",
+    "reachable": true,
+    "title": "Healthy Co — Home",
+    "meta_description": "A perfectly maintained example site.",
+    "canonical": "https://healthy.example.com/",
+    "heading_counts": {"h1": 1, "h2": 3},
+    "has_robots_txt": true,
+    "has_sitemap_xml": true
+  }
+}
