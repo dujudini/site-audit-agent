@@ -25,8 +25,10 @@ SCHEMA = {
 # which appears there as plain text without a dot in some GPL mentions.
 README_VERSION_RE = re.compile(r"Version\s+(\d+\.\d+(?:\.\d+)?)", re.I)
 ASSET_VERSION_RE = re.compile(r"[?&]ver=([\d.]+)")
-PLUGIN_RE = re.compile(r"/wp-content/plugins/([a-z0-9\-_]+)/", re.I)
-THEME_RE = re.compile(r"/wp-content/themes/([a-z0-9\-_]+)/", re.I)
+# Captures the whole asset URL (up to the closing quote/space/paren), not
+# just the slug, so the version query string further along the same URL
+# can be pulled from the match text afterward.
+ASSET_RE = re.compile(r"/wp-content/(plugins|themes)/([a-z0-9\-_]+)/[^\"'\s>)]*", re.I)
 
 
 async def _get(client: httpx.AsyncClient, url: str) -> httpx.Response | None:
@@ -36,14 +38,27 @@ async def _get(client: httpx.AsyncClient, url: str) -> httpx.Response | None:
         return None
 
 
+def _detect_assets(html: str) -> tuple[dict[str, str], dict[str, str]]:
+    """slug -> version (empty string if the asset URL carried no ?ver=)."""
+    plugins: dict[str, str] = {}
+    themes: dict[str, str] = {}
+    for m in ASSET_RE.finditer(html):
+        target = plugins if m.group(1).lower() == "plugins" else themes
+        slug = m.group(2)
+        ver_match = ASSET_VERSION_RE.search(m.group(0))
+        version = ver_match.group(1) if ver_match else ""
+        if not target.get(slug):
+            target[slug] = version
+    return plugins, themes
+
+
 async def wordpress_probe(url: str, client: httpx.AsyncClient) -> dict[str, Any]:
     base = url.rstrip("/")
 
     home = await _get(client, base + "/")
     html = home.text if home is not None else ""
 
-    plugins = sorted(set(PLUGIN_RE.findall(html)))
-    themes = sorted(set(THEME_RE.findall(html)))
+    plugins, themes = _detect_assets(html)
 
     readme = await _get(client, base + "/readme.html")
     core_version = None

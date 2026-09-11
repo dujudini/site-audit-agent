@@ -1,7 +1,7 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 2005,
-  "output_tokens": 667,
+  "input_tokens": 2130,
+  "output_tokens": 663,
   "tool_use_input": {
     "findings": [
       {
@@ -9,8 +9,8 @@
         "title": "TLS certificate has expired",
         "category": "security",
         "severity": "critical",
-        "explanation": "The site's SSL/TLS certificate has already expired, causing browsers to show visitors a security warning before they can even reach the site. This breaks trust with customers and can also cause many browsers and automated tools to refuse the connection entirely.",
-        "recommendation": "Renew the TLS certificate immediately and set up auto-renewal to prevent this from happening again.",
+        "explanation": "The site's SSL/TLS certificate has already expired, causing certificate verification failures when connecting securely. Visitors' browsers will show scary warnings telling them the site is not safe, which drives people away and can look like a hack to customers.",
+        "recommendation": "Renew the TLS certificate immediately and confirm the new certificate installs correctly on the web server, ideally with auto-renewal configured going forward.",
         "effort": "quick",
         "evidence_tools": [
           "tls_check"
@@ -18,11 +18,11 @@
       },
       {
         "id": "dmarc-missing",
-        "title": "No DMARC record configured",
+        "title": "No DMARC record found",
         "category": "security",
         "severity": "medium",
-        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for attackers to spoof emails that appear to come from this domain, which can be used for phishing against customers or partners.",
-        "recommendation": "Add a DMARC TXT record (starting with a monitoring policy like p=none) and gradually move to enforcement.",
+        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for scammers to send emails that appear to come from this domain, which can be used for phishing against customers or employees.",
+        "recommendation": "Publish a DMARC TXT record (starting with a monitoring policy like p=none, then tightening it) for the domain.",
         "effort": "quick",
         "evidence_tools": [
           "dns_check"
@@ -30,11 +30,11 @@
       },
       {
         "id": "security-headers-present",
-        "title": "Strong security headers already in place",
+        "title": "Core security headers are properly configured",
         "category": "security",
         "severity": "info",
-        "explanation": "The site is sending good security headers, including Content-Security-Policy, Strict-Transport-Security (HSTS), X-Frame-Options, X-Content-Type-Options, and Referrer-Policy. This is a healthy sign and reduces risk from common web attacks like clickjacking and content sniffing.",
-        "recommendation": "No action needed; continue maintaining these headers when the server configuration changes.",
+        "explanation": "The site sends Content-Security-Policy, Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, and Referrer-Policy headers, which is a good baseline defense against common web attacks like clickjacking and content sniffing.",
+        "recommendation": "No action needed; keep these headers in place when making future server changes.",
         "effort": "quick",
         "evidence_tools": [
           "http_probe"

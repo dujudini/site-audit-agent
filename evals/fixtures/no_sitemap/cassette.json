@@ -1,31 +1,19 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 2086,
-  "output_tokens": 1232,
+  "input_tokens": 2211,
+  "output_tokens": 1357,
   "tool_use_input": {
     "findings": [
       {
-        "id": "dmarc-missing",
+        "id": "no-dmarc",
         "title": "No DMARC record found for domain",
         "category": "security",
         "severity": "medium",
-        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for scammers to send emails that look like they came from your business (email spoofing), which can be used for phishing attacks against customers or staff.",
-        "recommendation": "Add a DMARC TXT record (e.g. starting with 'v=DMARC1; p=quarantine;') to the DNS settings for acme-dental.example.com.",
+        "explanation": "The domain has an SPF record but no DMARC record. SPF alone only tells receiving mail servers which servers are allowed to send mail for the domain; without DMARC there's no policy telling receiving servers what to do with messages that fail checks, and no reporting. This makes it easier for scammers to spoof emails that look like they come from this business (e.g. fake invoices to customers or staff).",
+        "recommendation": "Add a DMARC TXT record (e.g. starting with p=none for monitoring, then tightening to quarantine/reject) at _dmarc.acme-dental.example.com.",
         "effort": "quick",
         "evidence_tools": [
           "dns_check"
-        ]
-      },
-      {
-        "id": "no-sitemap",
-        "title": "No sitemap.xml found",
-        "category": "seo",
-        "severity": "low",
-        "explanation": "The site does not have a sitemap.xml file, even though a robots.txt file exists. A sitemap helps search engines find and index all the pages on the site, which can improve how well the site shows up in search results.",
-        "recommendation": "Generate a sitemap.xml file and reference it in robots.txt, then submit it to Google Search Console.",
-        "effort": "quick",
-        "evidence_tools": [
-          "content_probe"
         ]
       },
       {
@@ -33,8 +21,20 @@
         "title": "Homepage missing meta description",
         "category": "seo",
         "severity": "low",
-        "explanation": "The homepage has no meta description tag. Search engines often use this text as the snippet shown under the page title in search results, so missing it can lead to less compelling or less relevant search listings.",
-        "recommendation": "Add a concise, unique meta description (under ~160 characters) to the homepage summarizing what the business offers.",
+        "explanation": "The homepage has no meta description tag. Search engines often use this text as the snippet shown under the page title in search results; without it, search engines will auto-generate a snippet which is often less compelling and can hurt click-through rates.",
+        "recommendation": "Add a concise, unique meta description (roughly 120-160 characters) summarizing the practice and its services.",
+        "effort": "quick",
+        "evidence_tools": [
+          "content_probe"
+        ]
+      },
+      {
+        "id": "no-sitemap",
+        "title": "No sitemap.xml found",
+        "category": "seo",
+        "severity": "low",
+        "explanation": "There is no sitemap.xml file, which helps search engines discover and index all the pages on the site efficiently. Without it, some pages may be crawled more slowly or missed entirely.",
+        "recommendation": "Generate an XML sitemap and reference it in robots.txt, then submit it via Google Search Console.",
         "effort": "quick",
         "evidence_tools": [
           "content_probe"
@@ -45,8 +45,8 @@
         "title": "Homepage missing canonical tag",
         "category": "seo",
         "severity": "low",
-        "explanation": "There is no canonical URL tag on the homepage. Canonical tags help search engines understand which URL is the authoritative version of a page, which reduces the risk of duplicate content issues.",
-        "recommendation": "Add a canonical link tag pointing to the preferred homepage URL.",
+        "explanation": "No canonical URL tag was found on the homepage. Canonical tags help search engines understand the preferred URL for a page when there could be duplicate or similar versions (e.g. with/without trailing slash, http vs https), reducing the risk of duplicate content issues.",
+        "recommendation": "Add a self-referencing canonical link tag to the homepage and other key pages.",
         "effort": "quick",
         "evidence_tools": [
           "content_probe"
@@ -54,23 +54,23 @@
       },
       {
         "id": "missing-security-headers",
-        "title": "Common security headers not present",
+        "title": "Common security response headers not present",
         "category": "security",
         "severity": "medium",
-        "explanation": "The server response only shows a generic 'nginx' header with no security-related headers observed (such as those that prevent clickjacking or enforce HTTPS). Without these, the site is more exposed to certain browser-based attacks.",
-        "recommendation": "Configure the web server to send standard security headers like Strict-Transport-Security, X-Content-Type-Options, and X-Frame-Options.",
+        "explanation": "The server response only shows a generic 'nginx' header with no evidence of security headers such as Content-Security-Policy, Strict-Transport-Security, or X-Content-Type-Options being sent. These headers add extra protection against common attacks like clickjacking and content sniffing.",
+        "recommendation": "Configure the web server or application to send standard security headers (HSTS, X-Content-Type-Options, X-Frame-Options, Content-Security-Policy).",
         "effort": "moderate",
         "evidence_tools": [
           "http_probe"
         ]
       },
       {
-        "id": "tls-healthy",
-        "title": "TLS certificate valid and modern protocol in use",
+        "id": "cert-healthy",
+        "title": "TLS certificate valid and using modern protocol",
         "category": "security",
         "severity": "info",
-        "explanation": "The site's TLS certificate is valid for 60 more days and uses TLSv1.3, a modern and secure encryption protocol. No immediate action needed.",
-        "recommendation": "Continue automated renewal of the Let's Encrypt certificate before expiry.",
+        "explanation": "The site's TLS certificate is issued by Let's Encrypt, has 60 days remaining before expiration, and the connection uses TLS 1.3, a current and secure protocol version.",
+        "recommendation": "No action needed now; ensure certificate auto-renewal is configured well before the expiration date.",
         "effort": "quick",
         "evidence_tools": [
           "tls_check"

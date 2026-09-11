@@ -1,64 +1,52 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 1962,
-  "output_tokens": 1176,
+  "input_tokens": 2087,
+  "output_tokens": 859,
   "tool_use_input": {
     "findings": [
       {
-        "id": "redirect-chain-insecure-hop",
-        "title": "Redirect path passes through an insecure HTTP hop",
+        "id": "insecure-redirect-hop",
+        "title": "Redirect chain passes through unencrypted HTTP",
         "category": "security",
         "severity": "medium",
-        "explanation": "Visiting the old domain redirects through three steps before landing on the final site, and one of those steps (http://new-domain.example.com) is unencrypted HTTP. Anyone intercepting traffic on that middle step could see or tamper with the request before it reaches the secure final site.",
-        "recommendation": "Update the redirect on old-domain.example.com to point directly to the final HTTPS URL (https://new-domain.example.com/home), removing the intermediate HTTP hop.",
+        "explanation": "When visiting the old domain, the site redirects through an insecure http:// link (http://new-domain.example.com) before reaching the final https:// destination. This middle step is not encrypted, so data in that hop could be intercepted or tampered with, and it also undermines the trust chain for visitors and search engines.",
+        "recommendation": "Update the redirect on old-domain.example.com to point directly to the https:// version of new-domain.example.com, removing the intermediate http:// hop.",
         "effort": "quick",
         "evidence_tools": [
           "http_probe"
         ]
       },
       {
-        "id": "multi-hop-redirect-chain",
-        "title": "Old domain redirects through multiple hops to reach new site",
+        "id": "multi-hop-redirect",
+        "title": "Old domain requires three redirect hops to reach final page",
         "category": "performance",
         "severity": "low",
-        "explanation": "Requests to old-domain.example.com go through 3 redirects before reaching the final page. Each redirect adds extra round-trip time for visitors and search engines, slowing down page loads and diluting SEO value from links pointing at the old domain.",
-        "recommendation": "Set up a single direct redirect from the old domain straight to the final destination URL instead of chaining through multiple intermediate addresses.",
+        "explanation": "Visitors and search engines going to old-domain.example.com are bounced through three separate redirects before landing on the final page. Each hop adds delay and makes the site slower to load, and can also dilute SEO value being passed to the new domain.",
+        "recommendation": "Configure a single direct redirect from old-domain.example.com straight to the final https://new-domain.example.com/home URL.",
         "effort": "quick",
         "evidence_tools": [
           "http_probe"
         ]
       },
       {
-        "id": "no-spf-record",
-        "title": "No SPF record configured for domain",
+        "id": "no-spf-dmarc",
+        "title": "No SPF or DMARC records configured",
         "category": "security",
         "severity": "medium",
-        "explanation": "The domain has no SPF (Sender Policy Framework) TXT record. Without it, there's no rule telling email providers which servers are allowed to send mail on behalf of this domain, making it easier for attackers to spoof emails that appear to come from this domain.",
-        "recommendation": "Add an SPF TXT record to the domain's DNS settings specifying which mail servers are authorized to send email for this domain.",
+        "explanation": "The domain has no SPF or DMARC records set up. Without these, it's easier for scammers to send fake emails that appear to come from this domain, which can be used for phishing against your customers or partners.",
+        "recommendation": "Add SPF and DMARC TXT records to the domain's DNS settings, even if the domain only forwards and doesn't send mail directly.",
         "effort": "quick",
         "evidence_tools": [
           "dns_check"
         ]
       },
       {
-        "id": "no-dmarc-record",
-        "title": "No DMARC record configured for domain",
-        "category": "security",
-        "severity": "medium",
-        "explanation": "There is no DMARC record for this domain. DMARC tells receiving mail servers what to do with messages that fail authentication checks, helping prevent phishing emails that impersonate this domain.",
-        "recommendation": "Publish a DMARC TXT record (starting with a monitoring policy such as p=none) at _dmarc.old-domain.example.com and adjust the policy over time.",
-        "effort": "quick",
-        "evidence_tools": [
-          "dns_check"
-        ]
-      },
-      {
-        "id": "tls-cert-healthy",
-        "title": "TLS certificate is valid and not near expiry",
+        "id": "cert-expiring-60-days",
+        "title": "TLS certificate valid for 60 more days",
         "category": "security",
         "severity": "info",
-        "explanation": "The site's TLS certificate is issued by Let's Encrypt, uses modern TLSv1.3, and has 60 days remaining before expiration. This is a healthy signal and not an immediate concern.",
-        "recommendation": "No action needed now; ensure the certificate auto-renewal process is in place before it approaches expiration.",
+        "explanation": "The site's SSL certificate is currently valid and has 60 days left before it expires. This is not urgent yet, but is worth tracking so the site doesn't unexpectedly lose its secure connection.",
+        "recommendation": "Confirm automatic certificate renewal is set up, or calendar a manual renewal well before the 60-day window closes.",
         "effort": "quick",
         "evidence_tools": [
           "tls_check"

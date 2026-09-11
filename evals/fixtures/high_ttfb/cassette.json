@@ -1,16 +1,16 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 1975,
-  "output_tokens": 962,
+  "input_tokens": 2100,
+  "output_tokens": 988,
   "tool_use_input": {
     "findings": [
       {
         "id": "high-ttfb",
-        "title": "Server response time (TTFB) is very high at 1.45 seconds",
+        "title": "Server response time (TTFB) is about 1.45 seconds",
         "category": "performance",
         "severity": "medium",
-        "explanation": "The site took about 1450 milliseconds just to start sending data, before any content even begins loading. A healthy response is usually under 200-600 milliseconds. Visitors and search engines both perceive this as a slow site, which can hurt conversions and search rankings. There's also no CDN in front of the site, so every visitor hits the origin server directly.",
-        "recommendation": "Investigate backend performance (database queries, app code, hosting resources) and consider adding a CDN or caching layer to reduce response time.",
+        "explanation": "The site took roughly 1450 ms just to start sending data back to the browser, before any page content even begins loading. No content delivery network (CDN) was detected in front of the site. Visitors, especially on mobile or slower connections, will perceive the site as slow, and slow load times can hurt search rankings and conversion rates.",
+        "recommendation": "Investigate what's causing the slow backend response (database queries, app logic, hosting resources) and consider adding a CDN or caching layer to speed up delivery.",
         "effort": "moderate",
         "evidence_tools": [
           "http_probe",
@@ -19,11 +19,11 @@
       },
       {
         "id": "no-cache-control",
-        "title": "Responses are marked as never cacheable",
+        "title": "Response sent with 'no-store' caching directive",
         "category": "performance",
         "severity": "low",
-        "explanation": "The site sends a 'cache-control: no-store' header, which tells browsers and any intermediate caches to never store a copy of the page. Combined with the slow response time, this means every single visit forces a full, slow trip to the server with no chance of a faster cached load.",
-        "recommendation": "Review whether no-store is intentional; for pages that don't contain sensitive or personalized data, allow caching (e.g. cache-control: public, max-age=...) to improve load speed.",
+        "explanation": "The site's response headers tell browsers and intermediaries never to cache the page. Combined with the slow response time, this means every visitor pays the full cost of generating the page from scratch, with no ability to serve a cached copy faster.",
+        "recommendation": "Review whether 'no-store' is intentional; if the page content doesn't change per-request, use a more permissive caching policy to reduce load times and server load.",
         "effort": "quick",
         "evidence_tools": [
           "http_probe"
@@ -34,8 +34,8 @@
         "title": "TLS certificate expires in 60 days",
         "category": "security",
         "severity": "info",
-        "explanation": "The site's SSL/TLS certificate (issued by Let's Encrypt) is valid and currently has about 60 days left before it expires. This isn't urgent yet, but Let's Encrypt certificates are short-lived and need regular renewal.",
-        "recommendation": "Confirm automatic renewal is configured for the certificate so it doesn't lapse.",
+        "explanation": "The site's SSL/TLS certificate, issued by Let's Encrypt, is valid and using modern TLS 1.3, but it has 60 days remaining before it expires. This is a routine informational note rather than an urgent issue, since Let's Encrypt certificates are typically renewed automatically.",
+        "recommendation": "Confirm automatic renewal is configured for the certificate so it doesn't lapse unexpectedly.",
         "effort": "quick",
         "evidence_tools": [
           "tls_check"
@@ -43,11 +43,11 @@
       },
       {
         "id": "email-auth-healthy",
-        "title": "Email anti-spoofing records (SPF and DMARC) are properly configured",
+        "title": "SPF and DMARC records are configured",
         "category": "security",
         "severity": "info",
-        "explanation": "The domain has a strict SPF record (v=spf1 -all) and a DMARC policy set to quarantine, which helps prevent attackers from sending fake emails that appear to come from this domain.",
-        "recommendation": "No action needed; continue monitoring DMARC reports if collected.",
+        "explanation": "The domain has both an SPF record (set to hard-fail unauthorized senders) and a DMARC record (set to quarantine policy). This helps prevent attackers from spoofing emails that appear to come from this domain, protecting both the business and its customers from phishing.",
+        "recommendation": "No action needed; consider tightening DMARC policy to 'reject' over time as confidence in mail flow grows.",
         "effort": "quick",
         "evidence_tools": [
           "dns_check"

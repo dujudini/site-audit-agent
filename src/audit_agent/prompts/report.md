@@ -13,6 +13,12 @@ For each finding:
   you're claiming. Never cite a tool for a claim its data doesn't support.
 - Do not invent a number, a version, or a fact that isn't in the collected
   data. If the data doesn't show it, don't claim it.
+- Do not judge whether a version number "looks real" or "doesn't correspond
+  to any officially released version" using your own training knowledge.
+  Your knowledge of recent releases has a cutoff and gets stale; a version
+  that looks unfamiliar to you may simply have shipped after that cutoff.
+  Report the version a tool found. Don't editorialize about whether it
+  exists.
 
 Severity guide:
 - `critical`: site down, cert expired, data exposed (users, files, backups).

@@ -30,8 +30,8 @@ async def test_wordpress_probe_detects_plugins_and_exposed_users() -> None:
     async with httpx.AsyncClient() as client:
         result = await wordpress_probe("https://wp.example.com", client)
 
-    assert result["plugins_detected"] == ["contact-form-7"]
-    assert result["themes_detected"] == ["twentytwentyfour"]
+    assert result["plugins_detected"] == {"contact-form-7": "5.9.8"}
+    assert result["themes_detected"] == {"twentytwentyfour": "1.2"}
     assert result["core_version_exposed"] == "6.2"
     assert result["rest_users_exposed_count"] == 1
     assert result["xmlrpc_enabled"] is True
@@ -67,6 +67,34 @@ async def test_wordpress_probe_ignores_gpl_version_mention() -> None:
 
     assert result["core_version_exposed"] is None
     assert result["readme_html_public"] is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_wordpress_probe_reports_empty_version_when_asset_has_no_query_string() -> None:
+    """A real audit hit a site whose plugin/theme asset URLs carried no
+    ?ver= at all, so vuln_check had nothing to cross-reference even though
+    the plugin/theme itself was correctly detected."""
+    respx.get("https://noquery.example.com/").mock(
+        return_value=httpx.Response(
+            200,
+            text=(
+                '<script src="/wp-content/plugins/ewww-image-optimizer/js/a.js"></script>'
+                '<link href="/wp-content/themes/mvf-20/style.css" />'
+            ),
+        )
+    )
+    respx.get("https://noquery.example.com/readme.html").mock(return_value=httpx.Response(404))
+    respx.get("https://noquery.example.com/wp-json/wp/v2/users").mock(
+        return_value=httpx.Response(401)
+    )
+    respx.get("https://noquery.example.com/xmlrpc.php").mock(return_value=httpx.Response(403))
+
+    async with httpx.AsyncClient() as client:
+        result = await wordpress_probe("https://noquery.example.com", client)
+
+    assert result["plugins_detected"] == {"ewww-image-optimizer": ""}
+    assert result["themes_detected"] == {"mvf-20": ""}
 
 
 @pytest.mark.asyncio

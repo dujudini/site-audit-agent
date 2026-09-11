@@ -17,6 +17,7 @@ from audit_agent.config import load_settings
 from audit_agent.findings import generate_findings
 from audit_agent.report.json_out import render_json
 from audit_agent.report.markdown import render_markdown
+from audit_agent.report.terminal import render_terminal
 from audit_agent.schemas import AuditReport, RunMetrics, ToolCallTrace
 from audit_agent.tools.dns_check import dns_check
 from audit_agent.tools.http_probe import http_probe
@@ -80,15 +81,14 @@ def audit(
     """Run the full pipeline: loop + finding generation + report. Needs ANTHROPIC_API_KEY."""
     report, dropped = asyncio.run(_audit(url))
 
-    markdown = render_markdown(report)
-    console.print(markdown)
+    render_terminal(console, report)
     if dropped:
         console.print(
             f"\n[yellow]{len(dropped)} finding(s) dropped for missing/invalid evidence.[/yellow]"
         )
 
     if out is not None:
-        out.write_text(markdown, encoding="utf-8")
+        out.write_text(render_markdown(report), encoding="utf-8")
     if json_out is not None:
         json_out.write_text(render_json(report), encoding="utf-8")
 

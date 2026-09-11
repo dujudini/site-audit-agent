@@ -43,8 +43,8 @@
   "wordpress_probe": {
     "url": "https://old-wp.example.com",
     "core_version_exposed": "5.2",
-    "plugins_detected": ["contact-form-7", "yoast-seo"],
-    "themes_detected": ["twentynineteen"],
+    "plugins_detected": {"contact-form-7": "4.9", "yoast-seo": "10.0"},
+    "themes_detected": {"twentynineteen": "1.0"},
     "rest_users_exposed_count": 3,
     "xmlrpc_enabled": true,
     "readme_html_public": true

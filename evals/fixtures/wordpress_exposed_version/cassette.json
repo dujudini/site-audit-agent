@@ -1,16 +1,16 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 2153,
-  "output_tokens": 1742,
+  "input_tokens": 2291,
+  "output_tokens": 1914,
   "tool_use_input": {
     "findings": [
       {
         "id": "wp-core-outdated",
-        "title": "WordPress core is running an outdated, unsupported version (5.2)",
+        "title": "WordPress core version 5.2 exposed and outdated",
         "category": "security",
         "severity": "critical",
-        "explanation": "The site is running WordPress 5.2, which was released years ago and no longer receives security updates. Outdated WordPress installs are one of the most common ways attackers break into small business websites, since known vulnerabilities are public and easily automated against.",
-        "recommendation": "Upgrade WordPress core to the latest stable release as soon as possible, taking a backup first.",
+        "explanation": "The site is running WordPress 5.2, which is a very old version of the software. Old WordPress versions are missing years of security fixes, making the site an easy target for automated attacks that scan for known vulnerabilities.",
+        "recommendation": "Update WordPress core to the latest stable release as soon as possible, after taking a full backup.",
         "effort": "moderate",
         "evidence_tools": [
           "tech_detect",
@@ -18,25 +18,37 @@
         ]
       },
       {
-        "id": "php-outdated",
-        "title": "Server is running an old, end-of-life PHP version (7.2.1)",
+        "id": "outdated-plugins-themes",
+        "title": "Outdated plugins and theme in use",
         "category": "security",
         "severity": "high",
-        "explanation": "The X-Powered-By header shows PHP 7.2.1, a version that has been end-of-life for years and no longer receives security patches. Combined with the outdated WordPress install, this significantly increases the risk of the site being compromised.",
-        "recommendation": "Upgrade the server's PHP version to a currently supported release (PHP 8.1 or newer) after testing plugin/theme compatibility.",
+        "explanation": "The site uses Contact Form 7 version 4.9 and Yoast SEO version 10.0, along with the Twenty Nineteen theme version 1.0. Old plugin and theme versions often have publicly known security holes that attackers can exploit to take over a site.",
+        "recommendation": "Update all plugins and the theme to their latest versions, or remove any that are no longer needed.",
         "effort": "moderate",
+        "evidence_tools": [
+          "wordpress_probe"
+        ]
+      },
+      {
+        "id": "outdated-php",
+        "title": "Server running outdated PHP version 7.2.1",
+        "category": "security",
+        "severity": "high",
+        "explanation": "The web server is exposing PHP 7.2.1 in its response headers. This PHP version is long past its supported life, meaning it no longer receives security updates, which increases the risk of the server being compromised.",
+        "recommendation": "Upgrade the server's PHP version to a currently supported release (check with your hosting provider).",
+        "effort": "involved",
         "evidence_tools": [
           "http_probe",
           "tech_detect"
         ]
       },
       {
-        "id": "wp-rest-user-enum",
+        "id": "rest-user-enumeration",
         "title": "WordPress REST API exposes user account information",
         "category": "security",
         "severity": "high",
-        "explanation": "The WordPress REST API is publicly revealing 3 user accounts. Attackers commonly use this to discover valid usernames, then target those accounts with password-guessing attacks.",
-        "recommendation": "Restrict or disable the REST API user endpoint (e.g. via a security plugin) so usernames aren't publicly listable.",
+        "explanation": "The site's REST API is publicly revealing user account details (3 user accounts were found). Attackers commonly use this information to build a list of valid usernames to target with password-guessing attacks.",
+        "recommendation": "Restrict or disable the WordPress REST API user endpoint, or use a security plugin to block unauthenticated access to user data.",
         "effort": "quick",
         "evidence_tools": [
           "wordpress_probe"
@@ -47,60 +59,59 @@
         "title": "XML-RPC endpoint is enabled",
         "category": "security",
         "severity": "high",
-        "explanation": "XML-RPC is turned on, which is frequently abused for brute-force login attempts and to amplify denial-of-service attacks against the site.",
-        "recommendation": "Disable XML-RPC unless it's specifically required by a plugin or service, either via a security plugin or server-level rule.",
+        "explanation": "The XML-RPC interface (xmlrpc.php) is active on the site. This feature is frequently abused by attackers to perform brute-force login attempts and to amplify denial-of-service attacks against the site.",
+        "recommendation": "Disable XML-RPC unless it is actively required by a plugin or integration, using a security plugin or server-level rule.",
         "effort": "quick",
         "evidence_tools": [
           "wordpress_probe"
         ]
       },
       {
-        "id": "wp-readme-public",
+        "id": "readme-html-public",
         "title": "WordPress readme.html file is publicly accessible",
         "category": "security",
         "severity": "low",
-        "explanation": "The default readme.html file is reachable, which can confirm the exact WordPress version to visitors and potential attackers, making it easier for them to look up matching known vulnerabilities.",
-        "recommendation": "Remove or block access to readme.html on the server.",
+        "explanation": "The default readme.html file that ships with WordPress is accessible to anyone. This file can reveal the exact WordPress version installed, helping attackers identify which vulnerabilities might apply to the site.",
+        "recommendation": "Delete or block access to the readme.html file in the WordPress installation directory.",
         "effort": "quick",
         "evidence_tools": [
           "wordpress_probe"
         ]
       },
       {
-        "id": "no-dmarc",
-        "title": "No DMARC record configured for the domain",
+        "id": "tls-cert-expiring",
+        "title": "TLS certificate expires in 60 days",
         "category": "security",
         "severity": "medium",
-        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for scammers to send phishing emails that impersonate your domain, and you won't get reports of such abuse.",
-        "recommendation": "Add a DMARC TXT record (starting with a monitoring policy like p=none) and gradually move to enforcement.",
+        "explanation": "The site's SSL/TLS certificate is valid for 60 more days. While not urgent, if it is not renewed in time visitors will see security warnings and be blocked from accessing the site.",
+        "recommendation": "Set up automatic renewal for the Let's Encrypt certificate, or add a calendar reminder to renew before it expires.",
         "effort": "quick",
-        "evidence_tools": [
-          "dns_check"
-        ]
-      },
-      {
-        "id": "tls-cert-ok-but-old-protocol",
-        "title": "Server only negotiates TLS 1.2, not newer TLS 1.3",
-        "category": "security",
-        "severity": "low",
-        "explanation": "The site's TLS certificate itself is valid for 60 more days, but the connection only used TLS 1.2. TLS 1.3 offers stronger security and better performance, and many modern browsers/servers support it by default.",
-        "recommendation": "Check server/TLS library configuration and enable TLS 1.3 support if the hosting stack allows it.",
-        "effort": "moderate",
         "evidence_tools": [
           "tls_check"
         ]
       },
       {
-        "id": "high-ttfb-no-cdn",
-        "title": "Slow initial server response with no CDN in front of the site",
-        "category": "performance",
+        "id": "no-dmarc",
+        "title": "No DMARC email policy configured",
+        "category": "security",
         "severity": "medium",
-        "explanation": "The site took 320ms to start sending data (time to first byte), which is on the slower side, and there's no CDN detected to help cache and speed up delivery for visitors, especially those farther from the server.",
-        "recommendation": "Consider enabling a CDN (e.g. Cloudflare) and/or server-side caching to reduce response times.",
+        "explanation": "The domain has an SPF record but no DMARC record. Without DMARC, it's easier for attackers to send emails that impersonate this domain, which can be used for phishing against your customers or partners.",
+        "recommendation": "Add a DMARC DNS TXT record (e.g., starting with a monitoring policy) to help protect the domain from email spoofing.",
+        "effort": "quick",
+        "evidence_tools": [
+          "dns_check"
+        ]
+      },
+      {
+        "id": "tls-protocol-old",
+        "title": "Server only offers TLS 1.2, not TLS 1.3",
+        "category": "security",
+        "severity": "low",
+        "explanation": "The connection to the site negotiated using TLS 1.2. TLS 1.2 is still considered acceptable, but TLS 1.3 offers better security and performance and is now widely supported.",
+        "recommendation": "Enable TLS 1.3 support on the web server if the hosting environment allows it.",
         "effort": "moderate",
         "evidence_tools": [
-          "http_probe",
-          "dns_check"
+          "tls_check"
         ]
       }
     ]

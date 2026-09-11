@@ -1,44 +1,32 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 1706,
-  "output_tokens": 807,
+  "input_tokens": 1831,
+  "output_tokens": 772,
   "tool_use_input": {
     "findings": [
       {
         "id": "site-unreachable",
-        "title": "Website is not reachable over HTTPS",
+        "title": "Website is unreachable over HTTPS",
         "category": "availability",
         "severity": "critical",
-        "explanation": "The site refused the connection when trying to load it over HTTPS, and the TLS check also timed out. This means visitors cannot reach the website at all right now.",
-        "recommendation": "Check that the web server process is running and listening on the correct ports, and verify firewall/security group rules aren't blocking traffic.",
-        "effort": "moderate",
+        "explanation": "The site refused the connection when we tried to reach it over HTTPS, and the TLS check separately timed out trying to connect. This means visitors cannot currently load the website at all. DNS resolution still works and points to an IP address, so the server itself appears to be down, blocking the port, or misconfigured, rather than the domain being unregistered.",
+        "recommendation": "Check that the web server process and firewall on the host at 203.0.113.200 are running and accepting connections on ports 80/443, and restart the service or hosting instance if needed.",
+        "effort": "quick",
         "evidence_tools": [
           "http_probe",
           "tls_check"
         ]
       },
       {
-        "id": "tls-unverifiable",
-        "title": "TLS certificate status could not be checked",
+        "id": "tls-status-unknown",
+        "title": "Unable to verify TLS certificate status",
         "category": "security",
         "severity": "high",
-        "explanation": "Because the server isn't responding, we couldn't verify whether the SSL/TLS certificate is valid or expiring soon. This is a blind spot until the site is back online.",
-        "recommendation": "Once the server is restored, re-run a TLS check to confirm the certificate is valid and not close to expiry.",
+        "explanation": "We could not check whether the site's TLS/SSL certificate is valid or expiring because the connection timed out before any certificate could be retrieved. Until the site is reachable again, there is no way to confirm the certificate is in good standing, which is a risk in itself since an expired or misconfigured certificate would also block visitors.",
+        "recommendation": "Once server connectivity is restored, re-run a TLS check to confirm the certificate is valid and not close to expiring.",
         "effort": "quick",
         "evidence_tools": [
           "tls_check"
-        ]
-      },
-      {
-        "id": "dns-resolves-ok",
-        "title": "DNS is resolving correctly despite the outage",
-        "category": "availability",
-        "severity": "info",
-        "explanation": "The domain's DNS records are set up properly and point to an IP address, so the problem is with the server itself, not with domain name lookup.",
-        "recommendation": "No action needed for DNS; focus troubleshooting on the web/application server.",
-        "effort": "quick",
-        "evidence_tools": [
-          "dns_check"
         ]
       },
       {
@@ -46,8 +34,8 @@
         "title": "No SPF or DMARC email authentication records found",
         "category": "security",
         "severity": "medium",
-        "explanation": "The domain has no SPF or DMARC TXT records. Without these, it's easier for attackers to send fake emails that appear to come from this domain (phishing/spoofing).",
-        "recommendation": "Add SPF and DMARC TXT records for the domain, even if it doesn't send mail directly, to prevent spoofing.",
+        "explanation": "The domain has no SPF or DMARC TXT records set up. Without these, it's easier for attackers to send spoofed emails that appear to come from this domain, and legitimate email may be more likely to land in spam.",
+        "recommendation": "Add an SPF record and a DMARC TXT record for the domain to help mail providers verify legitimate email and reject spoofed messages.",
         "effort": "quick",
         "evidence_tools": [
           "dns_check"

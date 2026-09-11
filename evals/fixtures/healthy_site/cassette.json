@@ -1,22 +1,22 @@
 {
   "model": "claude-sonnet-5",
-  "input_tokens": 2451,
-  "output_tokens": 372,
+  "input_tokens": 2576,
+  "output_tokens": 348,
   "tool_use_input": {
     "findings": [
       {
-        "id": "healthy-site-baseline",
-        "title": "Site passes core security, performance, and SEO checks",
-        "category": "maintenance",
+        "id": "healthy-site-info",
+        "title": "Site passes core security, DNS, and SEO checks",
+        "category": "security",
         "severity": "info",
-        "explanation": "The site is reachable, serves over TLS 1.3 with a valid certificate (150 days remaining), sits behind Cloudflare, has all common security headers present (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), has SPF and DMARC records for email protection, responds quickly (95ms TTFB), and has a proper title, meta description, canonical tag, robots.txt, and sitemap.xml in place. No action needed.",
-        "recommendation": "No action required. Continue periodic monitoring of certificate expiry and security headers to maintain this posture.",
+        "explanation": "The site responds quickly, uses a valid TLS certificate with 150 days left, has all common security headers present (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy), has SPF and DMARC email protection records configured, and basic SEO items (title, meta description, canonical, robots.txt, sitemap.xml) are all in place. No issues were found during this audit.",
+        "recommendation": "No action needed. Continue periodic monitoring of TLS expiry and header configuration to keep this healthy state.",
         "effort": "quick",
         "evidence_tools": [
           "http_probe",
-          "dns_check",
           "tls_check",
           "headers_audit",
+          "dns_check",
           "content_probe"
         ]
       }
