@@ -1,4 +1,4 @@
-# site audit agent
+# Site Audit Agent
 
 A website often has one real problem worth acting on and nineteen things that
 don't matter. A linear scanner reports all twenty with equal weight. This
