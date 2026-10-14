@@ -60,8 +60,8 @@ def _settings(**overrides: Any) -> Settings:
     base = dict(
         anthropic_api_key="test-key",
         model_decision="claude-sonnet-5",
-        model_cheap="claude-haiku-4-5-20251001",
-        google_pagespeed_key="", wordfence_feed_path="nonexistent.json",
+        google_pagespeed_key="",
+        wordfence_feed_path="nonexistent.json",
         max_iterations=5,
         max_cost_usd=1.0,
         max_tool_calls=10,
@@ -73,7 +73,7 @@ def _settings(**overrides: Any) -> Settings:
 
 
 def _mock_base_collection() -> None:
-    respx.get("https://example.com/").mock(return_value=httpx.Response(200, headers={}))
+    respx.route(host="example.com").mock(return_value=httpx.Response(200, headers={}))
     respx.get("https://cloudflare-dns.com/dns-query").mock(
         return_value=httpx.Response(200, json={})
     )
@@ -139,12 +139,93 @@ async def test_agent_stops_at_max_iterations(monkeypatch: pytest.MonkeyPatch) ->
         )
 
     responses = [_always_wants_another_tool() for _ in range(10)]
-    monkeypatch.setattr(agent_mod, "AsyncAnthropic", FakeAnthropic(responses))
+    fake = FakeAnthropic(responses)
+    monkeypatch.setattr(agent_mod, "AsyncAnthropic", fake)
 
-    result = await agent_mod.run_agent(
-        "https://example.com", settings=_settings(max_iterations=2)
-    )
+    result = await agent_mod.run_agent("https://example.com", settings=_settings(max_iterations=2))
 
     assert result["run"]["status"] == "partial"
     assert result["state"]["stopped_reason"].startswith("max_iterations")
-    assert result["run"]["iterations"] <= 2
+    assert result["run"]["iterations"] == 2
+    assert len(fake.messages.calls) == 2, "max_iterations=2 must allow exactly 2 model calls"
+
+
+def _registry_with(fn: Any, name: str = "t") -> Any:
+    from audit_agent.tools import ToolRegistry, ToolSpec
+
+    registry = ToolRegistry()
+    registry.register(ToolSpec(name=name, description="", parameters={}, fn=fn))
+    return registry
+
+
+@pytest.mark.asyncio
+async def test_a_tool_that_raises_becomes_an_error_result_not_a_crash() -> None:
+    """Seen for real: a DoH resolver behind a proxy answered 200 with HTML and
+    resp.json() raised, which used to kill the whole paid-for audit."""
+
+    async def boom(url: str) -> dict[str, Any]:
+        raise ValueError("Expecting value: line 1 column 1")
+
+    async with httpx.AsyncClient() as client:
+        result = await agent_mod._run_tool_with_timeout(
+            _registry_with(boom), "t", {"url": "x"}, client, 5
+        )
+
+    assert "ValueError" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_a_wrong_argument_name_from_the_model_is_an_error_result() -> None:
+    async def takes_url(url: str) -> dict[str, Any]:
+        return {"ok": True}
+
+    async with httpx.AsyncClient() as client:
+        result = await agent_mod._run_tool_with_timeout(
+            _registry_with(takes_url), "t", {"domain": "x"}, client, 5
+        )
+
+    assert "TypeError" in result["error"]
+
+
+def test_normalize_url_adds_a_scheme_only_when_missing() -> None:
+    assert agent_mod.normalize_url("dujudini.com.br") == "https://dujudini.com.br"
+    assert agent_mod.normalize_url("http://example.com") == "http://example.com"
+
+
+def test_succeeded_rejects_skipped_errored_and_unreachable_results() -> None:
+    ok = agent_mod._succeeded
+    assert ok({"exposed": []}) is True
+    assert ok({"skipped": True, "reason": "feed not found"}) is False
+    assert ok({"error": "tool x exceeded 15s timeout"}) is False
+    assert ok({"reachable": False}) is False
+
+
+@pytest.mark.asyncio
+async def test_unknown_model_fails_before_spending_anything() -> None:
+    with pytest.raises(ValueError, match="no pricing entry"):
+        await agent_mod.run_agent(
+            "https://example.com", settings=_settings(model_decision="not-a-priced-model")
+        )
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_security_probes_run_in_the_base_collection_without_the_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The model concludes immediately and calls nothing, yet every probe that
+    feeds the OWASP coverage has already run."""
+    _mock_base_collection()
+    import audit_agent.tools.tls_check as tls_mod
+
+    async def fake_tls_check(domain: str, port: int = 443, timeout: float = 10.0) -> dict:
+        return {"domain": domain, "reachable": True, "days_left": 90, "issuer": "x"}
+
+    monkeypatch.setattr(tls_mod, "tls_check", fake_tls_check)
+    done = FakeResponse(content=[TextBlock(text="Nothing more to check.")])
+    monkeypatch.setattr(agent_mod, "AsyncAnthropic", FakeAnthropic([done]))
+
+    result = await agent_mod.run_agent("https://example.com", settings=_settings())
+
+    ran_at_start = {t["tool"] for t in result["run"]["trace"] if t["iteration"] == 0}
+    assert {"headers_audit", "exposure_probe", "integrity_probe", "auth_probe"} <= ran_at_start

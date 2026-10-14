@@ -36,8 +36,11 @@ async def perf_probe(url: str, client: httpx.AsyncClient, api_key: str) -> dict[
             timeout=30,
         )
         resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        # Never str(exc): it carries the full URL, API key included.
+        return {"url": url, "skipped": True, "reason": f"HTTP {exc.response.status_code}"}
     except httpx.HTTPError as exc:
-        return {"url": url, "skipped": True, "reason": str(exc)}
+        return {"url": url, "skipped": True, "reason": type(exc).__name__}
 
     data = resp.json()
     lighthouse = data.get("lighthouseResult", {})
@@ -71,4 +74,5 @@ def spec(api_key: str) -> ToolSpec:
         ),
         parameters=SCHEMA,
         fn=bound,
+        timeout_s=45,  # PageSpeed routinely takes 10-40s; the global 15s would cut it
     )

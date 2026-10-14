@@ -40,3 +40,19 @@ async def test_perf_probe_extracts_core_web_vitals() -> None:
     assert result["performance_score"] == 0.42
     assert result["lcp_ms"] == 4200.5
     assert result["cls"] == 0.15
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_api_key_never_appears_in_the_error_result() -> None:
+    """httpx puts the full URL, query string included, in its error text."""
+    respx.get("https://www.googleapis.com/pagespeedonline/v5/runPagespeed").mock(
+        return_value=httpx.Response(429)
+    )
+
+    async with httpx.AsyncClient() as client:
+        result = await perf_probe("https://example.com", client, api_key="AIzaSecretKey123")
+
+    assert result["skipped"] is True
+    assert "AIzaSecretKey123" not in repr(result)
+    assert result["reason"] == "HTTP 429"

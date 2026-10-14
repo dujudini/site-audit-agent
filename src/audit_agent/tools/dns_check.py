@@ -52,6 +52,24 @@ def _guess_cdn(ns_records: list[str], a_records: list[str]) -> str | None:
     return None
 
 
+async def _find_dmarc(client: httpx.AsyncClient, domain: str) -> str | None:
+    """DMARC is published at _dmarc.<domain>, never in the domain's own TXT, and
+    it covers subdomains. Reading only the apex TXT reported "no DMARC" for
+    every site. Falls back one label at a time (www.x.com.br -> x.com.br)
+    because the policy usually sits on the parent."""
+    labels = domain.split(".")
+    while len(labels) >= 2:
+        try:
+            answers = await _query(client, "_dmarc." + ".".join(labels), "TXT")
+        except httpx.HTTPError:
+            answers = []
+        for answer in answers:
+            if "v=DMARC1" in answer:
+                return answer
+        labels = labels[1:]
+    return None
+
+
 async def dns_check(domain: str, client: httpx.AsyncClient) -> dict[str, Any]:
     records: dict[str, list[str]] = {}
     for rtype in RECORD_TYPES:
@@ -59,6 +77,8 @@ async def dns_check(domain: str, client: httpx.AsyncClient) -> dict[str, Any]:
             records[rtype] = await _query(client, domain, rtype)
         except httpx.HTTPError:
             records[rtype] = []
+
+    dmarc = await _find_dmarc(client, domain)
 
     return {
         "domain": domain,
@@ -69,7 +89,8 @@ async def dns_check(domain: str, client: httpx.AsyncClient) -> dict[str, Any]:
         "ns": records["NS"],
         "cdn_guess": _guess_cdn(records["NS"], records["A"]),
         "has_spf": any("v=spf1" in t for t in records["TXT"]),
-        "has_dmarc": any("v=DMARC1" in t for t in records["TXT"]),
+        "has_dmarc": dmarc is not None,
+        "dmarc_record": dmarc,
     }
 
 

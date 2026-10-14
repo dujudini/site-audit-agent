@@ -1,7 +1,7 @@
 """The loop, written by hand. Read top to bottom:
 
-1. Run the fixed base collection (http_probe, dns_check, tls_check,
-   tech_detect) — always, unconditionally, it's the starting point.
+1. Run the fixed base collection (BASE_COLLECTION_TOOLS) — always,
+   unconditionally, it's the starting point.
 2. Enter the decision loop: send accumulated state + available tools to the
    model, ask what to call next and why.
 3. Execute the chosen tool, record latency and result, append to state.
@@ -25,12 +25,15 @@ import httpx
 from anthropic import AsyncAnthropic
 
 from audit_agent.config import Settings, load_settings
-from audit_agent.instrumentation import RunRecorder
+from audit_agent.instrumentation import RunRecorder, estimate_cost_usd
 from audit_agent.tools import ToolRegistry
+from audit_agent.tools.auth_probe import spec as auth_probe_spec
 from audit_agent.tools.content_probe import spec as content_probe_spec
 from audit_agent.tools.dns_check import spec as dns_check_spec
+from audit_agent.tools.exposure_probe import spec as exposure_probe_spec
 from audit_agent.tools.headers_audit import spec as headers_audit_spec
 from audit_agent.tools.http_probe import spec as http_probe_spec
+from audit_agent.tools.integrity_probe import spec as integrity_probe_spec
 from audit_agent.tools.perf_probe import spec as perf_probe_spec
 from audit_agent.tools.tech_detect import spec as tech_detect_spec
 from audit_agent.tools.tls_check import spec as tls_check_spec
@@ -39,7 +42,25 @@ from audit_agent.tools.wordpress_probe import spec as wordpress_probe_spec
 
 SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "system.md").read_text(encoding="utf-8")
 
-BASE_COLLECTION_TOOLS = ("http_probe", "dns_check", "tls_check", "tech_detect")
+# The four security probes are here, not left to the model: nothing in the
+# data collected so far hints at an exposed .env or a missing SRI hash, so a
+# model that decides from the data would skip them and the OWASP coverage would
+# change from one run to the next.
+BASE_COLLECTION_TOOLS = (
+    "http_probe", "dns_check", "tls_check", "tech_detect",
+    "headers_audit", "exposure_probe", "integrity_probe", "auth_probe",
+)
+
+
+def normalize_url(url: str) -> str:
+    """`audit example.com` is the most common way to type this."""
+    return url if "://" in url else "https://" + url
+
+
+def _succeeded(result: dict[str, Any]) -> bool:
+    """A tool that skipped, errored or could not reach the site did not check
+    anything, so the OWASP coverage must not count it as having run."""
+    return not (result.get("skipped") or "error" in result or result.get("reachable") is False)
 
 
 def build_registry(settings: Settings) -> ToolRegistry:
@@ -48,7 +69,8 @@ def build_registry(settings: Settings) -> ToolRegistry:
     registry = ToolRegistry()
     for make_spec in (
         http_probe_spec, dns_check_spec, tls_check_spec, tech_detect_spec,
-        headers_audit_spec, content_probe_spec,
+        headers_audit_spec, content_probe_spec, exposure_probe_spec,
+        integrity_probe_spec, auth_probe_spec,
     ):
         registry.register(make_spec())
     registry.register(perf_probe_spec(settings.google_pagespeed_key))
@@ -64,8 +86,9 @@ class GuardrailStop(Exception):
 
 
 def _check_guardrails(recorder: RunRecorder, settings: Settings) -> None:
-    if recorder.iterations >= settings.max_iterations:
-        raise GuardrailStop(f"max_iterations ({settings.max_iterations}) reached")
+    """Budgets that apply between any two steps. The iteration cap is checked
+    only before a model call, in run_agent: checking it between tools would
+    throw away the tool calls of a model response that was already paid for."""
     if recorder.tool_calls >= settings.max_tool_calls:
         raise GuardrailStop(f"max_tool_calls ({settings.max_tool_calls}) reached")
     if recorder.cost_usd >= settings.max_cost_usd:
@@ -100,42 +123,55 @@ async def _run_tool_with_timeout(
     fn_kwargs = dict(args)
     if "client" in spec.fn.__code__.co_varnames:
         fn_kwargs["client"] = client
+    timeout_s = spec.timeout_s or timeout_s
     try:
         return await asyncio.wait_for(spec.fn(**fn_kwargs), timeout=timeout_s)
     except TimeoutError:
         return {"error": f"tool {name} exceeded {timeout_s}s timeout"}
+    except Exception as exc:
+        # A tool bug or a bad argument from the model must not throw away an
+        # audit the user already paid tokens for; the model sees the error.
+        return {"error": f"tool {name} failed: {type(exc).__name__}: {str(exc)[:200]}"}
 
 
-async def run_agent(url: str, settings: Settings | None = None) -> dict[str, Any]:
+async def run_agent(
+    url: str, settings: Settings | None = None, recorder: RunRecorder | None = None
+) -> dict[str, Any]:
     settings = settings or load_settings()
-    domain = urlparse(url).netloc or url
-    recorder = RunRecorder()
+    # Fail before spending anything if this model has no price entry.
+    estimate_cost_usd(settings.model_decision, 0, 0)
+    url = normalize_url(url)
+    domain = urlparse(url).hostname or url
+    recorder = recorder or RunRecorder()
     registry = build_registry(settings)
     anthropic = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     async with httpx.AsyncClient(
         timeout=settings.timeout_tool_s, headers={"User-Agent": settings.user_agent}
     ) as client:
-        # Step 1 — fixed base collection, always these four, unconditionally.
+        # Step 1 — fixed base collection, unconditionally.
         state: dict[str, Any] = {"url": url, "domain": domain, "collected": {}}
-        base_args = {
-            "http_probe": {"url": url},
-            "dns_check": {"domain": domain},
-            "tls_check": {"domain": domain},
-            "tech_detect": {"url": url},
-        }
-        for tool_name in BASE_COLLECTION_TOOLS:
-            args = base_args[tool_name]
+        base_args = {name: {"url": url} for name in BASE_COLLECTION_TOOLS}
+        base_args["dns_check"] = {"domain": domain}
+        base_args["tls_check"] = {"domain": domain}
+
+        async def _timed(name: str) -> tuple[dict[str, Any], float]:
             t0 = time.monotonic()
-            result = await _run_tool_with_timeout(
-                registry, tool_name, args, client, settings.timeout_tool_s
+            res = await _run_tool_with_timeout(
+                registry, name, base_args[name], client, settings.timeout_tool_s
             )
-            latency_ms = (time.monotonic() - t0) * 1000
+            return res, (time.monotonic() - t0) * 1000
+
+        # Independent tools: run together, record in the fixed order.
+        timed = await asyncio.gather(*(_timed(n) for n in BASE_COLLECTION_TOOLS))
+        for tool_name, (result, latency_ms) in zip(BASE_COLLECTION_TOOLS, timed, strict=True):
+            args = base_args[tool_name]
             state["collected"][tool_name] = result
             recorder.record_tool_call(
                 iteration=0, tool=tool_name, args=args,
                 reasoning="base collection, always run first",
                 latency_ms=round(latency_ms, 1), result_summary=_summarize(result),
+                ok=_succeeded(result),
             )
 
         # Dynamic registry: wordpress_probe only exists for the model to call
@@ -160,8 +196,10 @@ async def run_agent(url: str, settings: Settings | None = None) -> dict[str, Any
 
         try:
             while True:
-                recorder.iterations += 1
+                if recorder.iterations >= settings.max_iterations:
+                    raise GuardrailStop(f"max_iterations ({settings.max_iterations}) reached")
                 _check_guardrails(recorder, settings)
+                recorder.iterations += 1
 
                 # Raw dicts, not the SDK's TypedDicts: messages/tools are
                 # built dynamically across loop iterations and the registry.
@@ -202,7 +240,7 @@ async def run_agent(url: str, settings: Settings | None = None) -> dict[str, Any
                     recorder.record_tool_call(
                         iteration=recorder.iterations, tool=block.name, args=block.input,
                         reasoning=reasoning, latency_ms=round(latency_ms, 1),
-                        result_summary=_summarize(result),
+                        result_summary=_summarize(result), ok=_succeeded(result),
                     )
                     tool_results.append(
                         {

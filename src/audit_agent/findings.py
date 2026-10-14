@@ -20,6 +20,7 @@ from anthropic import AsyncAnthropic
 from pydantic import ValidationError
 
 from audit_agent.config import Settings
+from audit_agent.instrumentation import RunRecorder
 from audit_agent.schemas import Evidence, Finding
 
 REPORT_PROMPT = (Path(__file__).parent / "prompts" / "report.md").read_text(encoding="utf-8")
@@ -84,9 +85,11 @@ def _build_evidence(
 
 async def generate_findings(
     state: dict[str, Any], settings: Settings, anthropic: AsyncAnthropic | None = None,
+    recorder: RunRecorder | None = None,
 ) -> tuple[list[Finding], list[dict[str, Any]]]:
     """Returns (valid findings, dropped) — dropped entries carry the raw model
-    output plus why they were rejected, for debugging, never silently lost."""
+    output plus why they were rejected, for debugging, never silently lost.
+    Pass the run's recorder so this call's tokens and cost are counted too."""
     anthropic = anthropic or AsyncAnthropic(api_key=settings.anthropic_api_key)
     collected = state["collected"]
     captured_at = datetime.now(UTC)
@@ -111,6 +114,11 @@ async def generate_findings(
             }
         ],
     )
+
+    if recorder is not None:
+        recorder.record_model_usage(
+            settings.model_decision, response.usage.input_tokens, response.usage.output_tokens
+        )
 
     tool_use = next(b for b in response.content if b.type == "tool_use")
     raw_findings = tool_use.input.get("findings", [])

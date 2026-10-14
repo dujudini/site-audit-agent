@@ -4,6 +4,7 @@ minimum SEO/content hygiene signals a maintenance client cares about."""
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urljoin
 
@@ -27,12 +28,26 @@ CANONICAL_RE = re.compile(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"
 HEADING_RE = re.compile(r"<h([1-6])\b", re.I)
 
 
-async def _exists(client: httpx.AsyncClient, url: str) -> bool:
+# /wp-sitemap.xml is what WordPress core serves by default since 5.5, so
+# checking only /sitemap.xml would flag a stock WordPress site as having none.
+SITEMAP_PATHS = ("/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml")
+
+
+_HTML_START = re.compile(r"\s*<(!doctype|html)", re.I)
+_SITEMAP = re.compile(r"<(urlset|sitemapindex)\b", re.I)
+
+
+async def _exists(
+    client: httpx.AsyncClient, url: str, looks_right: Callable[[str], bool]
+) -> bool:
+    """A 200 alone proves nothing: a single-page app answers 200 with its HTML
+    shell for every path. shortcut: downloads the whole file, fine up to a few
+    MB of sitemap; stream it if a site ever ships a huge one."""
     try:
-        resp = await client.get(url)
-        return resp.status_code == 200
+        resp = await client.get(url, follow_redirects=True)
     except httpx.HTTPError:
         return False
+    return resp.status_code == 200 and looks_right(resp.text[:4096])
 
 
 async def content_probe(url: str, client: httpx.AsyncClient) -> dict[str, Any]:
@@ -51,9 +66,15 @@ async def content_probe(url: str, client: httpx.AsyncClient) -> dict[str, Any]:
         heading_counts[key] = heading_counts.get(key, 0) + 1
 
     base = str(resp.url)
-    has_robots, has_sitemap = await _exists(client, urljoin(base, "/robots.txt")), False
-    if has_robots:
-        has_sitemap = await _exists(client, urljoin(base, "/sitemap.xml"))
+    has_robots = await _exists(
+        client, urljoin(base, "/robots.txt"), lambda text: not _HTML_START.match(text)
+    )
+    # Independent of robots.txt: a site can have a sitemap and no robots.txt.
+    has_sitemap = False
+    for path in SITEMAP_PATHS:
+        if await _exists(client, urljoin(base, path), lambda text: bool(_SITEMAP.search(text))):
+            has_sitemap = True
+            break
 
     return {
         "url": url,

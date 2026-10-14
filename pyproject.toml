@@ -1,7 +1,7 @@
 [project]
 name = "audit-agent"
 version = "0.1.0"
-description = "Adaptive agent that audits a website from a URL: passive collection, LLM-driven investigation loop, evidence-backed findings."
+description = "Adaptive agent that audits a website from a URL: read-only collection, LLM-driven investigation loop, evidence-backed findings."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }

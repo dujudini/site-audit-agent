@@ -25,6 +25,9 @@ SCHEMA = {
 # which appears there as plain text without a dot in some GPL mentions.
 README_VERSION_RE = re.compile(r"Version\s+(\d+\.\d+(?:\.\d+)?)", re.I)
 ASSET_VERSION_RE = re.compile(r"[?&]ver=([\d.]+)")
+GENERATOR_RE = re.compile(r"""name=["']generator["'][^>]*content=["']WordPress\s+([\d.]+)""", re.I)
+# Assets under wp-includes are versioned by WordPress itself.
+CORE_ASSET_RE = re.compile(r"/wp-includes/[^\"'\s>)]*[?&]ver=(\d+\.\d+(?:\.\d+)?)", re.I)
 # Captures the whole asset URL (up to the closing quote/space/paren), not
 # just the slug, so the version query string further along the same URL
 # can be pulled from the match text afterward.
@@ -32,14 +35,27 @@ ASSET_RE = re.compile(r"/wp-content/(plugins|themes)/([a-z0-9\-_]+)/[^\"'\s>)]*"
 
 
 async def _get(client: httpx.AsyncClient, url: str) -> httpx.Response | None:
+    # Follow redirects: an apex that 301s to www would otherwise answer every
+    # probe below with a 301, which reads as "hardened" instead of "unchecked".
     try:
-        return await client.get(url)
+        return await client.get(url, follow_redirects=True)
     except httpx.HTTPError:
         return None
 
 
+def _core_version(html: str) -> str:
+    m = GENERATOR_RE.search(html) or CORE_ASSET_RE.search(html)
+    return m.group(1) if m else ""
+
+
 def _detect_assets(html: str) -> tuple[dict[str, str], dict[str, str]]:
-    """slug -> version (empty string if the asset URL carried no ?ver=)."""
+    """slug -> version (empty string if unknown).
+
+    WordPress stamps its own core version as ?ver= on any asset enqueued
+    without one, so a version equal to the core's says nothing about the
+    plugin or theme. shortcut: a component that really has the core's exact
+    version number is read as unknown, which costs one missed CVE match."""
+    core = _core_version(html)
     plugins: dict[str, str] = {}
     themes: dict[str, str] = {}
     for m in ASSET_RE.finditer(html):
@@ -47,6 +63,8 @@ def _detect_assets(html: str) -> tuple[dict[str, str], dict[str, str]]:
         slug = m.group(2)
         ver_match = ASSET_VERSION_RE.search(m.group(0))
         version = ver_match.group(1) if ver_match else ""
+        if version == core:
+            version = ""
         if not target.get(slug):
             target[slug] = version
     return plugins, themes

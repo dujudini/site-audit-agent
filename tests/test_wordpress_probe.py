@@ -104,7 +104,9 @@ async def test_wordpress_probe_reports_hardened_site() -> None:
         return_value=httpx.Response(200, text="<html></html>")
     )
     respx.get("https://hardened.example.com/readme.html").mock(return_value=httpx.Response(404))
-    respx.get("https://hardened.example.com/wp-json/wp/v2/users").mock(return_value=httpx.Response(401))
+    respx.get("https://hardened.example.com/wp-json/wp/v2/users").mock(
+        return_value=httpx.Response(401)
+    )
     respx.get("https://hardened.example.com/xmlrpc.php").mock(return_value=httpx.Response(403))
 
     async with httpx.AsyncClient() as client:
@@ -114,3 +116,58 @@ async def test_wordpress_probe_reports_hardened_site() -> None:
     assert result["rest_users_exposed_count"] == 0
     assert result["xmlrpc_enabled"] is False
     assert result["readme_html_public"] is False
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_wordpress_probe_follows_an_apex_redirect() -> None:
+    """Without following the 301, every probe below read as "nothing there"."""
+
+    def apex(request: httpx.Request) -> httpx.Response:
+        target = f"https://www.example.com{request.url.path}"
+        return httpx.Response(301, headers={"location": target})
+
+    respx.route(host="example.com").mock(side_effect=apex)
+
+    def www(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/wp-json/wp/v2/users":
+            return httpx.Response(200, json=[{"id": 1}, {"id": 2}])
+        if request.url.path == "/xmlrpc.php":
+            return httpx.Response(200, text="XML-RPC server accepts POST requests only.")
+        if request.url.path == "/readme.html":
+            return httpx.Response(200, text="readme")
+        return httpx.Response(
+            200, text='<script src="/wp-content/plugins/akismet/a.js?ver=5.3"></script>'
+        )
+
+    respx.route(host="www.example.com").mock(side_effect=www)
+
+    async with httpx.AsyncClient() as client:
+        result = await wordpress_probe("https://example.com", client)
+
+    assert result["plugins_detected"] == {"akismet": "5.3"}
+    assert result["rest_users_exposed_count"] == 2
+    assert result["xmlrpc_enabled"] is True
+    assert result["readme_html_public"] is True
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_ver_equal_to_core_version_is_not_taken_as_the_theme_version() -> None:
+    """Real site: the theme's CSS carried ?ver=<WordPress version>, and its
+    style.css carried the real theme version further down the page."""
+    html = (
+        '<meta name="generator" content="WordPress 7.0.7" />'
+        '<link href="/wp-content/themes/mvf-20/css/bootstrap.min.css?ver=7.0.7">'
+        '<link href="/wp-content/themes/mvf-20/style.css?ver=2.0">'
+        '<script src="/wp-content/plugins/ewww/a.js?ver=7.0.7"></script>'
+    )
+    respx.get("https://v.example.com/").mock(return_value=httpx.Response(200, text=html))
+    for path in ("/readme.html", "/wp-json/wp/v2/users", "/xmlrpc.php"):
+        respx.get(f"https://v.example.com{path}").mock(return_value=httpx.Response(404))
+
+    async with httpx.AsyncClient() as client:
+        result = await wordpress_probe("https://v.example.com", client)
+
+    assert result["themes_detected"] == {"mvf-20": "2.0"}
+    assert result["plugins_detected"] == {"ewww": ""}

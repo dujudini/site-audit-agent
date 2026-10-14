@@ -36,6 +36,7 @@ class ToolCallRecord:
     reasoning: str
     latency_ms: float
     result_summary: str
+    ok: bool = True
 
 
 @dataclass
@@ -57,13 +58,13 @@ class RunRecorder:
 
     def record_tool_call(
         self, iteration: int, tool: str, args: dict[str, Any], reasoning: str,
-        latency_ms: float, result_summary: str,
+        latency_ms: float, result_summary: str, ok: bool = True,
     ) -> None:
         self.tool_calls += 1
         self.trace.append(
             ToolCallRecord(
                 iteration=iteration, tool=tool, args=args, reasoning=reasoning,
-                latency_ms=latency_ms, result_summary=result_summary,
+                latency_ms=latency_ms, result_summary=result_summary, ok=ok,
             )
         )
 

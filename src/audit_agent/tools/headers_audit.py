@@ -27,17 +27,19 @@ SECURITY_HEADERS = {
 }
 
 
-def _cookie_flags(set_cookie_headers: list[str]) -> list[dict[str, Any]]:
+def cookie_flags(set_cookie_headers: list[str]) -> list[dict[str, Any]]:
     flagged = []
     for raw in set_cookie_headers:
-        name = raw.split("=", 1)[0].strip()
-        lower = raw.lower()
+        name_value, *attributes = raw.split(";")
+        # Only attributes after the first ";" count: matching the whole string
+        # would read a cookie *named* "secure_id" as having the Secure flag.
+        attr_names = {a.split("=", 1)[0].strip().lower() for a in attributes}
         flagged.append(
             {
-                "name": name,
-                "secure": "secure" in lower,
-                "httponly": "httponly" in lower,
-                "samesite": "samesite" in lower,
+                "name": name_value.split("=", 1)[0].strip(),
+                "secure": "secure" in attr_names,
+                "httponly": "httponly" in attr_names,
+                "samesite": "samesite" in attr_names,
             }
         )
     return flagged
@@ -61,7 +63,7 @@ async def headers_audit(url: str, client: httpx.AsyncClient) -> dict[str, Any]:
         "present_security_headers": [
             name for hdr, name in SECURITY_HEADERS.items() if hdr in present
         ],
-        "cookies": _cookie_flags(set_cookie),
+        "cookies": cookie_flags(set_cookie),
     }
 
 

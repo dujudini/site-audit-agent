@@ -22,24 +22,25 @@ SCHEMA = {
 async def http_probe(url: str, client: httpx.AsyncClient) -> dict[str, Any]:
     start = time.monotonic()
     try:
-        resp = await client.get(url, follow_redirects=True)
+        async with client.stream("GET", url, follow_redirects=True) as resp:
+            # Stop the clock at the headers of the final response. Reading the
+            # body first would fold the download time into "TTFB".
+            ttfb_ms = (time.monotonic() - start) * 1000
+            body = await resp.aread()
+            redirects = [str(r.url) for r in resp.history]
+            return {
+                "url": url,
+                "reachable": True,
+                "final_url": str(resp.url),
+                "status_code": resp.status_code,
+                "redirect_chain": redirects,
+                "redirect_count": len(redirects),
+                "headers": dict(resp.headers),
+                "ttfb_ms": round(ttfb_ms, 1),
+                "content_length": len(body),
+            }
     except httpx.HTTPError as exc:
         return {"url": url, "error": str(exc), "reachable": False}
-
-    ttfb_ms = (time.monotonic() - start) * 1000
-    redirects = [str(r.url) for r in resp.history]
-
-    return {
-        "url": url,
-        "reachable": True,
-        "final_url": str(resp.url),
-        "status_code": resp.status_code,
-        "redirect_chain": redirects,
-        "redirect_count": len(redirects),
-        "headers": dict(resp.headers),
-        "ttfb_ms": round(ttfb_ms, 1),
-        "content_length": len(resp.content),
-    }
 
 
 def spec() -> ToolSpec:

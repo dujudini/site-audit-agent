@@ -56,7 +56,6 @@ def _settings() -> Settings:
     return Settings(
         anthropic_api_key="cassette-replay-needs-no-real-key",
         model_decision="claude-sonnet-5",
-        model_cheap="claude-haiku-4-5-20251001",
         google_pagespeed_key="",
         wordfence_feed_path="nonexistent.json",
         max_iterations=12,

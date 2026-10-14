@@ -8,7 +8,9 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
+
+from audit_agent import owasp as owasp_map
 
 
 class Severity(StrEnum):
@@ -52,6 +54,11 @@ class Finding(BaseModel):
             raise ValueError("a Finding without evidence is invalid, not just unverified")
         return v
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def owasp(self) -> list[str]:
+        return owasp_map.owasp_for(self.category.value, (e.tool for e in self.evidence))
+
 
 class ToolCallTrace(BaseModel):
     iteration: int
@@ -60,6 +67,8 @@ class ToolCallTrace(BaseModel):
     reasoning: str
     latency_ms: float
     result_summary: str
+    # False when the tool skipped, errored or could not reach the site.
+    ok: bool = True
 
 
 class RunMetrics(BaseModel):
@@ -77,3 +86,14 @@ class AuditReport(BaseModel):
     status: Literal["complete", "partial"]
     findings: list[Finding]
     run: RunMetrics
+
+    def owasp_coverage(self) -> list[tuple[str, str, str]]:
+        # info severity is "checked, nothing wrong", so it is not a hit.
+        found = {
+            code
+            for f in self.findings
+            if f.severity != Severity.info
+            for code in f.owasp
+        }
+        ran = {t.tool for t in self.run.trace if t.ok}
+        return owasp_map.coverage(found, ran)

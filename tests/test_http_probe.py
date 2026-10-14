@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 import pytest
 import respx
@@ -47,3 +49,20 @@ async def test_http_probe_reports_unreachable_without_raising() -> None:
 
     assert result["reachable"] is False
     assert "error" in result
+
+
+@pytest.mark.asyncio
+async def test_ttfb_stops_at_the_headers_not_at_the_end_of_the_body() -> None:
+    async def slow_body():
+        yield b"a"
+        await asyncio.sleep(0.4)
+        yield b"b"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=slow_body())
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        result = await http_probe("https://slow-body.example.com/", client)
+
+    assert result["content_length"] == 2
+    assert result["ttfb_ms"] < 300, "TTFB must not include the 400ms body download"

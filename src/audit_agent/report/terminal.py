@@ -55,7 +55,10 @@ def _finding_panel(finding: Finding) -> Panel:
     title.stylize(SEVERITY_TITLE_STYLE[finding.severity])
 
     body = Text()
-    body.append(f"{finding.category.value} | {finding.effort}\n\n", style="dim")
+    meta = f"{finding.category.value} | {finding.effort}"
+    if finding.owasp:
+        meta += f" | OWASP {', '.join(finding.owasp)}"
+    body.append(meta + "\n\n", style="dim")
     body.append(_safe(finding.explanation) + "\n\n")
     body.append("Recommendation: ", style="bold")
     body.append(_safe(finding.recommendation) + "\n\n")
@@ -77,6 +80,11 @@ def render_terminal(console: Console, report: AuditReport) -> None:
         console.print("No findings. Nothing in the collected data warranted flagging.\n")
     for f in findings:
         console.print(_finding_panel(f))
+
+    console.print("[bold]OWASP Top 10:2025 coverage[/bold]")
+    for code, name, status in report.owasp_coverage():
+        console.print(f"  {code} {name}: {status}")
+    console.print()
 
     run = report.run
     table = Table(title="Run metrics", show_header=False, box=None, padding=(0, 2, 0, 0))

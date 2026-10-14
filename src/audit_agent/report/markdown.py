@@ -24,7 +24,10 @@ def render_markdown(report: AuditReport) -> str:
         lines.append("No findings. Nothing in the collected data warranted flagging.")
     for f in findings:
         lines.append(f"## {SEVERITY_LABEL[f.severity]} — {f.title}")
-        lines.append(f"**Category:** {f.category.value} · **Effort:** {f.effort}")
+        meta = f"**Category:** {f.category.value} · **Effort:** {f.effort}"
+        if f.owasp:
+            meta += f" · **OWASP:** {', '.join(f.owasp)}"
+        lines.append(meta)
         lines.append("")
         lines.append(f.explanation)
         lines.append("")
@@ -33,6 +36,12 @@ def render_markdown(report: AuditReport) -> str:
         tools = ", ".join(sorted({e.tool for e in f.evidence}))
         lines.append(f"_Evidence: {tools}_")
         lines.append("")
+
+    lines.append("---")
+    lines.append("## OWASP Top 10:2025 coverage")
+    for code, name, status in report.owasp_coverage():
+        lines.append(f"- {code} {name}: {status}")
+    lines.append("")
 
     run = report.run
     lines.append("---")

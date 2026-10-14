@@ -41,7 +41,6 @@ def _settings() -> Settings:
     return Settings(
         anthropic_api_key="test-key",
         model_decision="claude-sonnet-5",
-        model_cheap="claude-haiku-4-5-20251001",
         google_pagespeed_key="",
         wordfence_feed_path="nonexistent.json",
         max_iterations=5,
@@ -134,3 +133,28 @@ async def test_empty_findings_list_is_valid() -> None:
 
     assert findings == []
     assert dropped == []
+
+
+@pytest.mark.asyncio
+async def test_findings_call_cost_is_added_to_the_run_recorder() -> None:
+    """The report's cost used to leave this call out, understating it."""
+    from types import SimpleNamespace
+
+    from audit_agent.instrumentation import RunRecorder
+
+    response = SimpleNamespace(
+        content=[ToolUseBlock(input={"findings": []})],
+        usage=SimpleNamespace(input_tokens=2000, output_tokens=1000),
+    )
+    recorder = RunRecorder()
+
+    await generate_findings(
+        {"url": "https://example.com", "collected": {}},
+        _settings(),
+        anthropic=FakeAnthropic(response),
+        recorder=recorder,
+    )
+
+    assert recorder.input_tokens == 2000
+    assert recorder.output_tokens == 1000
+    assert recorder.cost_usd > 0

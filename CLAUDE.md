@@ -52,17 +52,10 @@ O LLM **nunca** inventa um dado. Se um número aparece no relatório, ele veio d
 
 Um `Finding` sem campo `evidence` preenchido a partir de retorno de ferramenta é inválido e deve ser descartado na validação, não apenas avisado. Isso mata alucinação por construção, não por prompt.
 
-### 3.3 Coleta passiva apenas
-
-- Respeitar `robots.txt`.
-- Nada de tentativa de exploração, fuzzing, brute force, injeção ou bypass de autenticação.
-- Nada de scan de porta.
-- Rate limit padrão de no máximo 1 requisição por segundo por host.
-- `User-Agent` identificável e honesto, com URL do repositório.
 
 O README precisa dizer explicitamente que a ferramenta é para sites próprios ou com autorização.
 
-### 3.4 Guardrails de execução
+### 3.3 Guardrails de execução
 
 Toda execução tem teto, configurável e com default seguro:
 
@@ -74,7 +67,7 @@ Toda execução tem teto, configurável e com default seguro:
 
 Ao bater qualquer teto, o agente encerra com o que tem e marca o relatório como `partial`. Nunca trava, nunca estoura silencioso.
 
-### 3.5 Instrumentação não é opcional
+### 3.4 Instrumentação não é opcional
 
 Cada execução registra custo em USD, tokens de entrada e saída por etapa, latência por chamada de ferramenta, número de iterações, e a sequência de decisões tomadas. Sem isso o README não tem número, e sem número o repositório não convence ninguém.
 
@@ -84,18 +77,34 @@ Cada execução registra custo em USD, tokens de entrada e saída por etapa, lat
 
 ```
 Python 3.12
-httpx              requisições HTTP assíncronas
+httpx              requisições HTTP assíncronas, e DNS via DoH
 anthropic          SDK oficial, com tool use
 pydantic v2        schema dos achados e validação
 typer              CLI
 rich               saída no terminal
-pytest             testes e evals
 python-dotenv      configuração
+```
+
+Só em desenvolvimento (`pip install -e ".[dev]"`):
+
+```
+pytest             testes e evals
+pytest-asyncio     testes das ferramentas assíncronas
+respx              mock do httpx, para testar sem rede
+pyyaml             lê evals/cases.yaml
+ruff               lint e format
+mypy               tipos, em modo strict
 ```
 
 **Sem framework de agente.** Nada de LangChain, LlamaIndex, CrewAI. O loop precisa estar visível no repositório, escrito à mão, porque é justamente ele que o entrevistador quer ver. Um framework esconde a parte que dá valor ao projeto.
 
-Modelos: usar Sonnet para o loop de decisão e Haiku para tarefas baratas de classificação, se houver. Deixar os identificadores em `config.py` lendo de variável de ambiente, nunca hardcoded no meio do código. Confirmar os identificadores atuais na documentação da Anthropic antes de fixar o default.
+Três escolhas que a lista não mostra, todas para não somar dependência:
+
+- **DNS** vai por DNS-over-HTTPS (resolvedor da Cloudflare) usando o próprio `httpx`, em vez de `dnspython`. Alguns ambientes bloqueiam UDP na porta 53. O custo é enxergar o DNS pelo olhar de um resolvedor público, não o do host que roda a ferramenta.
+- **TLS** usa o `ssl` da biblioteca padrão.
+- **HTML** é lido com regex, sem parser. Serve para as metas, links e atributos que as ferramentas procuram, e erra em marcação incomum (um `>` dentro de um atributo, por exemplo). Se uma ferramenta passar a precisar de estrutura de verdade, é aí que entra um parser.
+
+Modelos: há um só, `AUDIT_AGENT_MODEL_DECISION` (Sonnet), usado no loop de decisão e na geração de achados. Haiku só entra se aparecer uma tarefa barata de classificação, e a variável de ambiente volta junto com ela. Os identificadores ficam em `config.py` lendo de variável de ambiente, nunca hardcoded no meio do código. O custo vem de uma tabela de preços em `instrumentation.py`: um modelo fora da tabela falha antes de qualquer chamada paga, em vez de estimar um preço. Confirmar os identificadores e os preços atuais na documentação da Anthropic antes de mudar o default.
 
 ---
 
@@ -119,19 +128,25 @@ Se os arquivos não estiverem na pasta, pergunte antes de seguir.
 site-audit-agent/
 ├── README.md
 ├── CLAUDE.md
+├── LICENSE
 ├── pyproject.toml
 ├── .env.example
+├── .github/workflows/ci.yml   ruff, mypy, pytest e evals (sem rede)
+├── scripts/
+│   └── download_wordfence_feed.py   baixa o feed de CVE (precisa de API key)
 ├── src/
 │   └── audit_agent/
 │       ├── __init__.py
-│       ├── cli.py            entrada Typer
+│       ├── cli.py            entrada Typer: probe e audit (audit exige --i-am-authorized)
 │       ├── config.py         limites, modelos, defaults
 │       ├── agent.py          o loop, escrito à mão
+│       ├── findings.py       geração de achados, etapa separada do loop
 │       ├── schemas.py        modelos Pydantic
+│       ├── owasp.py          mapa ferramenta -> OWASP Top 10:2025 e cobertura
 │       ├── instrumentation.py custo, tokens, latência, trace
 │       ├── prompts/
-│       │   ├── system.md
-│       │   └── report.md
+│       │   ├── system.md     prompt do loop de investigação
+│       │   └── report.md     prompt da geração de achados
 │       ├── tools/
 │       │   ├── __init__.py   registry e schemas JSON
 │       │   ├── http_probe.py
@@ -139,16 +154,22 @@ site-audit-agent/
 │       │   ├── dns_check.py
 │       │   ├── tech_detect.py
 │       │   ├── headers_audit.py
+│       │   ├── exposure_probe.py   arquivos sensíveis e listagem de diretório
+│       │   ├── integrity_probe.py  SRI em scripts e CSS de terceiros
+│       │   ├── auth_probe.py       cookies de sessão e formulário de senha
 │       │   ├── perf_probe.py
 │       │   ├── content_probe.py
-│       │   └── wordpress_probe.py
+│       │   ├── wordpress_probe.py
+│       │   └── vuln_check.py       cruza versões com o feed de CVE
 │       └── report/
-│           ├── markdown.py
-│           └── json_out.py
+│           ├── markdown.py   relatório portátil (arquivo, GitHub)
+│           ├── json_out.py   mesmo dado, legível por máquina
+│           └── terminal.py   saída colorida por severidade, só para o terminal
 ├── evals/
 │   ├── cases.yaml
 │   ├── test_evals.py
-│   └── fixtures/
+│   ├── record_cassettes.py   grava as respostas do modelo, uma vez, com API real
+│   └── fixtures/             collected.json e cassette.json por caso
 └── tests/
 ```
 
@@ -159,14 +180,14 @@ site-audit-agent/
 Em `schemas.py`, com Pydantic v2. Esse é o contrato do sistema inteiro.
 
 ```python
-class Severity(str, Enum):
+class Severity(StrEnum):
     critical = "critical"
     high = "high"
     medium = "medium"
     low = "low"
-    info = "info"
+    info = "info"        # "verifiquei e está tudo bem", não é um problema
 
-class Category(str, Enum):
+class Category(StrEnum):
     security = "security"
     performance = "performance"
     seo = "seo"
@@ -175,7 +196,7 @@ class Category(str, Enum):
 
 class Evidence(BaseModel):
     tool: str            # qual ferramenta produziu
-    raw: dict            # retorno bruto, sem interpretação
+    raw: dict | list[dict]   # retorno bruto; lista quando a ferramenta foi chamada de novo
     captured_at: datetime
 
 class Finding(BaseModel):
@@ -188,14 +209,42 @@ class Finding(BaseModel):
     effort: Literal["quick", "moderate", "involved"]
     evidence: list[Evidence]   # nunca vazio
 
+    @computed_field
+    def owasp(self) -> list[str]:   # derivado das ferramentas da evidência, nunca do LLM
+        ...
+
+class ToolCallTrace(BaseModel):
+    iteration: int
+    tool: str
+    args: dict
+    reasoning: str
+    latency_ms: float
+    result_summary: str
+    ok: bool = True      # False se pulou, deu erro ou não alcançou o site
+
+class RunMetrics(BaseModel):
+    cost_usd: float      # inclui a chamada de geração de achados
+    input_tokens: int
+    output_tokens: int
+    iterations: int
+    tool_calls: int
+    duration_s: float
+    trace: list[ToolCallTrace]
+
 class AuditReport(BaseModel):
     url: str
     status: Literal["complete", "partial"]
     findings: list[Finding]
-    run: RunMetrics      # custo, tokens, latência, iterações, trace de decisões
+    run: RunMetrics
+
+    def owasp_coverage(self) -> list[tuple[str, str, str]]: ...
 ```
 
 `explanation` e `recommendation` são os únicos campos que o LLM escreve livremente. Todo o resto é derivado de ferramenta ou de regra.
+
+`owasp` é um mapa fixo de ferramenta para categoria (`owasp.py`), e só achados de segurança carregam tag. A tag segue a ferramenta, não o conteúdo do achado: leia como índice, não como classificação.
+
+`ok` existe porque "a sonda não achou nada" só vale se ela de fato respondeu. A cobertura OWASP conta como "rodou" apenas as chamadas com `ok=True`, e achado `info` não conta como problema encontrado.
 
 ---
 
@@ -203,12 +252,14 @@ class AuditReport(BaseModel):
 
 Em `agent.py`, escrito de forma que dê para ler de cima a baixo e entender:
 
-1. Executa a coleta base: `http_probe`, `dns_check`, `tls_check`, `tech_detect`. Sempre essas quatro, é o ponto de partida.
+1. Executa a coleta base, sempre as oito: `http_probe`, `dns_check`, `tls_check`, `tech_detect`, `headers_audit`, `exposure_probe`, `integrity_probe`, `auth_probe`. É o ponto de partida.
 2. Entra no loop. A cada iteração, manda o estado acumulado ao modelo com as ferramentas disponíveis e pergunta qual chamar em seguida e por quê.
 3. Executa a ferramenta escolhida, registra latência e resultado, acrescenta ao estado.
 4. Registra no trace a decisão e a justificativa do modelo.
 5. Repete até o modelo declarar que terminou, ou até bater um teto.
 6. Fase final separada: com todo o estado coletado, gera os `Finding`, prioriza e escreve o relatório.
+
+As quatro sondas de segurança (`headers_audit`, `exposure_probe`, `integrity_probe`, `auth_probe`) ficam na coleta base e não à escolha do modelo. Nada nos dados das primeiras quatro sugere um `.env` exposto ou um hash SRI ausente, então um modelo que decide a partir desses dados as pula, e a cobertura OWASP muda de uma execução para outra. As ferramentas condicionais e as de conteúdo e performance (`content_probe`, `perf_probe`, `wordpress_probe`, `vuln_check`) continuam por decisão do modelo.
 
 A geração de achados é uma **etapa distinta** do loop de investigação. Não misture as duas. Investigar e concluir são operações diferentes e o repositório deve deixar isso óbvio.
 
@@ -230,8 +281,12 @@ Cada uma é uma função pura com schema JSON declarado, que recebe parâmetros 
 | `perf_probe` | PageSpeed Insights ou métricas próprias, compressão, cache |
 | `content_probe` | title, meta, headings, robots.txt, sitemap, canonical |
 | `wordpress_probe` | versão, REST users, xmlrpc, readme, plugins no HTML |
+| `exposure_probe` | `.env`, `.git/config`, backups do wp-config, logs de debug, listagem de diretório (só com assinatura de conteúdo; nunca devolve o conteúdo) |
+| `integrity_probe` | scripts e CSS de terceiros sem `integrity` (SRI), exceto hosts dinâmicos |
+| `auth_probe` | cookies de sessão sem Secure/HttpOnly/SameSite, formulário de senha por HTTP |
+| `vuln_check` | cruza versões do core, plugins e temas com o feed de CVE da Wordfence |
 
-`wordpress_probe` só entra no registry se `tech_detect` identificou WordPress. Ferramenta irrelevante não deve aparecer para o modelo. Registry dinâmico é parte do design.
+`wordpress_probe` e `vuln_check` só entram no registry se `tech_detect` identificou WordPress. Ferramenta irrelevante não deve aparecer para o modelo. Registry dinâmico é parte do design.
 
 ---
 
@@ -330,7 +385,6 @@ README com trace real e números medidos, GIF da demo, licença MIT, GitHub Acti
 - Não adicione framework de agente.
 - Não use LLM para coletar dado que código consegue coletar.
 - Não gere achado sem evidência de ferramenta.
-- Não implemente exploração de vulnerabilidade, nem em modo opcional.
 - Não deixe custo ou latência sem medição.
 - Não escreva README com adjetivo no lugar de número.
 - Não adicione interface web antes da Fase 5.
@@ -342,5 +396,4 @@ README com trace real e números medidos, GIF da demo, licença MIT, GitHub Acti
 
 - Os arquivos `scanner.py`, `audit.py` ou `report_pdf.py` não estão na pasta.
 - Uma escolha de arquitetura conflita com alguma regra da seção 3.
-- Uma ferramenta precisaria fazer requisição que passe do limite de coleta passiva.
 - Terminou uma fase.

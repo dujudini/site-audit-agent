@@ -15,6 +15,7 @@ class ToolSpec:
     description: str
     parameters: dict[str, Any]
     fn: Callable[..., Awaitable[dict[str, Any]]]
+    timeout_s: int | None = None  # overrides the global per-tool timeout
 
     def to_anthropic_schema(self) -> dict[str, Any]:
         return {

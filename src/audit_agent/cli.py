@@ -12,9 +12,10 @@ import typer
 from rich.console import Console
 from rich.json import JSON
 
-from audit_agent.agent import run_agent
+from audit_agent.agent import normalize_url, run_agent
 from audit_agent.config import load_settings
 from audit_agent.findings import generate_findings
+from audit_agent.instrumentation import RunRecorder
 from audit_agent.report.json_out import render_json
 from audit_agent.report.markdown import render_markdown
 from audit_agent.report.terminal import render_terminal
@@ -28,7 +29,8 @@ console = Console()
 
 
 async def _probe(url: str) -> dict[str, Any]:
-    domain = urlparse(url).netloc or url
+    url = normalize_url(url)
+    domain = urlparse(url).hostname or url
 
     async with httpx.AsyncClient(timeout=15) as client:
         http_result, dns_result, tls_result = await asyncio.gather(
@@ -49,10 +51,12 @@ def probe(url: str) -> None:
 
 async def _audit(url: str) -> tuple[AuditReport, list[dict[str, Any]]]:
     settings = load_settings()
-    result = await run_agent(url, settings)
-    findings, dropped = await generate_findings(result["state"], settings)
+    recorder = RunRecorder()
+    result = await run_agent(url, settings, recorder)
+    findings, dropped = await generate_findings(result["state"], settings, recorder=recorder)
 
-    run_data = result["run"]
+    # Read after the findings call so the reported cost and tokens include it.
+    run_data = recorder.as_metrics_dict(result["run"]["status"])
     report = AuditReport(
         url=result["state"]["url"],
         status=run_data["status"],
@@ -70,15 +74,30 @@ async def _audit(url: str) -> tuple[AuditReport, list[dict[str, Any]]]:
     return report, dropped
 
 
+AUTHORIZATION_REFUSAL = (
+    "Refusing to run: pass --i-am-authorized to confirm you own this site "
+    "or have written permission to test it."
+)
+
+
 @app.command()
 def audit(
     url: str,
+    i_am_authorized: bool = typer.Option(
+        False,
+        "--i-am-authorized",
+        help="Confirm you own this site or have written permission to test it. Required.",
+    ),
     out: Path | None = typer.Option(None, help="Write Markdown report to this file."),
     json_out: Path | None = typer.Option(
         None, "--json-out", help="Write JSON report to this file."
     ),
 ) -> None:
     """Run the full pipeline: loop + finding generation + report. Needs ANTHROPIC_API_KEY."""
+    if not i_am_authorized:
+        typer.echo(AUTHORIZATION_REFUSAL, err=True)
+        raise typer.Exit(code=2)
+
     report, dropped = asyncio.run(_audit(url))
 
     render_terminal(console, report)
