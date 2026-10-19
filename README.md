@@ -91,14 +91,37 @@ every tool call with its latency and the reasoning the model gave for it.
 
 ## Evals
 
-`evals/` holds 8 fixtures with planted problems. Model responses are recorded
-once and replayed, so a normal test run uses no network and no API credit.
+`evals/` holds 8 fixtures, one planted problem each, covering 4 of the 5
+finding categories the schema defines (security, performance, SEO,
+availability; no fixture covers `maintenance` yet). There is no accessibility
+category: this is a correctness and security scanner, not an a11y auditor.
+Model responses are recorded once and replayed, so a normal test run uses no
+network and no API credit.
 
-- **Recall: 8/8.** Every planted problem was found.
-- **Evidence integrity: 36/36.** Every emitted finding traced to a collected
-  tool result. None was dropped for citing data that was not collected.
+| Fixture | Category | Planted problem |
+|---|---|---|
+| `expired_tls` | Security | Expired TLS certificate |
+| `no_security_headers` | Security | Missing security headers |
+| `wordpress_exposed_version` | Security | WordPress 5.2 exposed, user enumeration via REST |
+| `high_ttfb` | Performance | Slow time-to-first-byte |
+| `no_sitemap` | SEO | Missing `sitemap.xml` |
+| `redirect_chain` | SEO / availability | Chained redirects |
+| `healthy_site` | None | Clean site, zero problem-severity findings expected |
+| `site_down` | Availability | Unreachable site |
+
+- **Recall: 8/8.** Every planted problem was found, including the negative
+  case: `healthy_site` produced no problem-severity finding.
+- **Evidence integrity: 36/36.** Across the 8 cases the agent emitted 36
+  findings in total, not just the one planted problem each, since several
+  fixtures are realistic enough to also surface a real secondary issue. Every
+  one of the 36 traced to a tool result actually collected in that run. None
+  was dropped for citing data that was not collected.
 - **Healthy-site case:** no problem-severity findings. The agent emitted one
   `info` finding ("checked, nothing wrong").
+
+Each case is a single isolated problem; none combines two. 8 fixtures is a
+small set, and more of them, not a reframing of these numbers, is the honest
+way to make this claim stronger.
 
 A "matching findings / total findings" precision figure is not reported. The
 fixtures are realistic enough that the model also finds real secondary issues,
