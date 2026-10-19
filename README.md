@@ -14,8 +14,11 @@ to a generic warning.
 that you meet that condition. The flag is not a technical control and does not
 verify ownership.
 
-All tools are read-only: HTTP GET requests, DNS lookups and a TLS handshake.
-None sends a payload, credentials or exploit traffic.
+By default every tool is read-only: HTTP GET requests, DNS lookups and a TLS
+handshake. No request sends credentials or changes anything on the target.
+`--active` adds three more GET-only probes that send unusual input (a query
+marker, an admin path, a malformed path) to test for injection, verbose
+errors and open admin paths. See [Active mode](#active-mode-owasp-a01-a05-a10).
 
 ## Architecture
 
@@ -43,7 +46,7 @@ phase or the other.
 
 The loop is written by hand in `agent.py`, with no agent framework.
 
-Two details of the design:
+Three details of the design:
 
 - `wordpress_probe` and `vuln_check` are registered only after `tech_detect`
   confirms WordPress. A tool that does not apply is never offered to the model.
@@ -52,6 +55,9 @@ Two details of the design:
   first four results hints at an exposed `.env` or a missing SRI hash, so a
   model choosing from that data would skip them and the OWASP coverage would
   change between runs.
+- With `--active`, the same applies to `injection_probe`, `error_handling_probe`
+  and `access_probe`: they join the base collection instead of being left to
+  the model, for the same reason.
 
 ## Tools
 
@@ -69,6 +75,9 @@ Two details of the design:
 | `perf_probe` | PageSpeed Insights metrics |
 | `wordpress_probe` | Version, REST users, XML-RPC, readme, plugins and themes in the HTML |
 | `vuln_check` | Core, plugin and theme versions against the Wordfence CVE feed |
+| `injection_probe` | Active, see below. Reflected marker and database error leakage |
+| `error_handling_probe` | Active, see below. Stack traces and framework internals in error pages |
+| `access_probe` | Active, see below. Common admin paths reachable without a login form |
 
 ## Output
 
@@ -130,12 +139,17 @@ a fixed map of evidence tool to category (`owasp.py`), not from the model.
 | `vuln_check` | A03 Software Supply Chain Failures |
 | `auth_probe` | A07 Authentication Failures |
 | `integrity_probe` | A08 Software or Data Integrity Failures |
+| `access_probe` (active mode) | A01 Broken Access Control |
+| `injection_probe` (active mode) | A05 Injection |
+| `error_handling_probe` (active mode) | A10 Mishandling of Exceptional Conditions |
 
-A01, A05, A06, A09 and A10 are listed as "not assessed": no passive probe here
-covers them. For the other five, the coverage line says whether the probe ran,
-because a probe that did not run proves nothing. A probe that skipped, errored
-or could not reach the site counts as not run, and an `info` finding does not
-count as a hit.
+A06 and A09 are listed as "not assessed": no probe here, passive or active,
+covers them. Insecure design is a property of decisions made while building
+the site, not of its live traffic, and logging and alerting happen on
+infrastructure this agent never sees. For the other eight, the coverage line
+says whether the probe ran, because a probe that did not run proves nothing.
+A probe that skipped, errored or could not reach the site counts as not run,
+and an `info` finding does not count as a hit.
 
 The tag follows the tool, not the content of the finding. Read it as an index
 into the report, not as a classification of each issue.
@@ -145,6 +159,30 @@ signature, so a site that answers 200 to everything is not flagged, and file
 contents never reach the report. `integrity_probe` leaves out tag managers,
 analytics and web fonts, since a pinned SRI hash would break them on the next
 vendor update.
+
+## Active mode (OWASP A01, A05, A10)
+
+`audit --active` adds three probes on top of the passive set:
+
+- `injection_probe` (A05): sends a unique marker in a query string and checks
+  whether the response reflects it unescaped (reflected XSS) or leaks a
+  database driver's own error text.
+- `error_handling_probe` (A10): requests a path that cannot exist and a
+  malformed path, and checks whether the error response leaks a stack trace,
+  a file path or framework internals instead of a generic error page.
+- `access_probe` (A01, partial): requests common admin paths (`/admin`,
+  `/dashboard`, and similar) and reports which ones return content without a
+  login form. It cannot tell whether a reachable path exposes another user's
+  data, which would need an account on the target, so this covers only
+  whether the path is open at all.
+
+Every active request is still GET, sent to the audited host, and changes
+nothing on the server. With `--active` the three run unconditionally, in the
+base collection, the same way the passive security probes do: nothing in a
+clean site's data gives the model a reason to reach for them on its own, so
+leaving them to its judgment would make the coverage change from run to run.
+Use `--active` only on a target where your authorization under
+`--i-am-authorized` extends to this kind of testing.
 
 ## Known-CVE cross-referencing (optional)
 
@@ -178,6 +216,9 @@ audit-agent probe https://example.com
 
 # full pipeline: loop, findings, report (your own site, or written permission)
 audit-agent audit https://example.com --i-am-authorized --out report.md --json-out report.json
+
+# add active probes (A01, A05, A10)
+audit-agent audit https://example.com --i-am-authorized --active
 ```
 
 ```bash
@@ -201,7 +242,13 @@ python evals/record_cassettes.py
   `sitemap.xml` exist.
 - The model chooses which optional tools to run (`content_probe`, `perf_probe`
   and the WordPress ones), so two runs on the same site can cover different
-  ground there. The OWASP coverage block shows what ran.
+  ground there. The active probes are forced into the base collection instead,
+  so `--active` always runs all three. The OWASP coverage block shows what ran.
+- `access_probe` only tests whether an admin path answers without a login
+  form, not whether it belongs to the audited site owner or exposes real
+  data. A custom login page it does not recognize can also read as open.
+- `injection_probe` appends its marker to the URL as-is; a site with no query
+  parameters at all gives it nothing realistic to test.
 - `perf_probe` needs a Google PageSpeed key with its own quota. Without one it
   reports `skipped`.
 - DNS goes through Cloudflare's DoH resolver, which is one public resolver's

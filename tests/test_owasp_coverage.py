@@ -104,7 +104,7 @@ def test_every_tool_in_the_owasp_map_exists_in_the_registry() -> None:
     from audit_agent.config import load_settings
     from audit_agent.owasp import TOOL_TO_OWASP
 
-    names = {s["name"] for s in build_registry(load_settings()).schemas()}
+    names = {s["name"] for s in build_registry(load_settings(), active=True).schemas()}
     names |= {"wordpress_probe", "vuln_check"}  # registered once WordPress is detected
 
     assert set(TOOL_TO_OWASP) <= names

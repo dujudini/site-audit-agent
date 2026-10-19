@@ -27,12 +27,15 @@ from anthropic import AsyncAnthropic
 from audit_agent.config import Settings, load_settings
 from audit_agent.instrumentation import RunRecorder, estimate_cost_usd
 from audit_agent.tools import ToolRegistry
+from audit_agent.tools.access_probe import spec as access_probe_spec
 from audit_agent.tools.auth_probe import spec as auth_probe_spec
 from audit_agent.tools.content_probe import spec as content_probe_spec
 from audit_agent.tools.dns_check import spec as dns_check_spec
+from audit_agent.tools.error_handling_probe import spec as error_handling_probe_spec
 from audit_agent.tools.exposure_probe import spec as exposure_probe_spec
 from audit_agent.tools.headers_audit import spec as headers_audit_spec
 from audit_agent.tools.http_probe import spec as http_probe_spec
+from audit_agent.tools.injection_probe import spec as injection_probe_spec
 from audit_agent.tools.integrity_probe import spec as integrity_probe_spec
 from audit_agent.tools.perf_probe import spec as perf_probe_spec
 from audit_agent.tools.tech_detect import spec as tech_detect_spec
@@ -51,6 +54,11 @@ BASE_COLLECTION_TOOLS = (
     "headers_audit", "exposure_probe", "integrity_probe", "auth_probe",
 )
 
+# Same reasoning as above: a clean site gives the model no reason to reach
+# for these on its own (a run against a healthy site never called any of
+# the three), so --active must force them rather than merely offer them.
+ACTIVE_BASE_COLLECTION_TOOLS = ("injection_probe", "error_handling_probe", "access_probe")
+
 
 def normalize_url(url: str) -> str:
     """`audit example.com` is the most common way to type this."""
@@ -63,9 +71,10 @@ def _succeeded(result: dict[str, Any]) -> bool:
     return not (result.get("skipped") or "error" in result or result.get("reachable") is False)
 
 
-def build_registry(settings: Settings) -> ToolRegistry:
-    """Always-available tools. wordpress_probe is added on top of this,
-    conditionally, once tech_detect confirms WordPress — see run_agent."""
+def build_registry(settings: Settings, active: bool = False) -> ToolRegistry:
+    """Always-available tools, plus the active probes when requested.
+    wordpress_probe and vuln_check are added on top of this, conditionally,
+    once tech_detect confirms WordPress — see run_agent."""
     registry = ToolRegistry()
     for make_spec in (
         http_probe_spec, dns_check_spec, tls_check_spec, tech_detect_spec,
@@ -74,6 +83,13 @@ def build_registry(settings: Settings) -> ToolRegistry:
     ):
         registry.register(make_spec())
     registry.register(perf_probe_spec(settings.google_pagespeed_key))
+    # Active probes send unusual input (query markers, admin paths, a
+    # malformed path). Still GET-only and read-only, but closer to probing
+    # than the passive base collection, so they need --active. Registered
+    # here so run_agent can call them in its forced base collection too.
+    if active:
+        for make_spec in (injection_probe_spec, error_handling_probe_spec, access_probe_spec):
+            registry.register(make_spec())
     return registry
 
 
@@ -135,7 +151,10 @@ async def _run_tool_with_timeout(
 
 
 async def run_agent(
-    url: str, settings: Settings | None = None, recorder: RunRecorder | None = None
+    url: str,
+    settings: Settings | None = None,
+    recorder: RunRecorder | None = None,
+    active: bool = False,
 ) -> dict[str, Any]:
     settings = settings or load_settings()
     # Fail before spending anything if this model has no price entry.
@@ -143,15 +162,17 @@ async def run_agent(
     url = normalize_url(url)
     domain = urlparse(url).hostname or url
     recorder = recorder or RunRecorder()
-    registry = build_registry(settings)
+    registry = build_registry(settings, active=active)
     anthropic = AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     async with httpx.AsyncClient(
         timeout=settings.timeout_tool_s, headers={"User-Agent": settings.user_agent}
     ) as client:
-        # Step 1 — fixed base collection, unconditionally.
+        # Step 1 — fixed base collection, unconditionally. The active probes
+        # join it only with --active; otherwise they aren't even registered.
+        base_tools = BASE_COLLECTION_TOOLS + (ACTIVE_BASE_COLLECTION_TOOLS if active else ())
         state: dict[str, Any] = {"url": url, "domain": domain, "collected": {}}
-        base_args = {name: {"url": url} for name in BASE_COLLECTION_TOOLS}
+        base_args = {name: {"url": url} for name in base_tools}
         base_args["dns_check"] = {"domain": domain}
         base_args["tls_check"] = {"domain": domain}
 
@@ -163,8 +184,8 @@ async def run_agent(
             return res, (time.monotonic() - t0) * 1000
 
         # Independent tools: run together, record in the fixed order.
-        timed = await asyncio.gather(*(_timed(n) for n in BASE_COLLECTION_TOOLS))
-        for tool_name, (result, latency_ms) in zip(BASE_COLLECTION_TOOLS, timed, strict=True):
+        timed = await asyncio.gather(*(_timed(n) for n in base_tools))
+        for tool_name, (result, latency_ms) in zip(base_tools, timed, strict=True):
             args = base_args[tool_name]
             state["collected"][tool_name] = result
             recorder.record_tool_call(

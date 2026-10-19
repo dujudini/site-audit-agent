@@ -229,3 +229,54 @@ async def test_security_probes_run_in_the_base_collection_without_the_model(
 
     ran_at_start = {t["tool"] for t in result["run"]["trace"] if t["iteration"] == 0}
     assert {"headers_audit", "exposure_probe", "integrity_probe", "auth_probe"} <= ran_at_start
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_active_probes_run_in_base_collection_only_with_active_true(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Forced into the base collection, like the security probes: a clean
+    site gives the model no reason to reach for these on its own, so
+    --active must run them rather than merely offer them."""
+    _mock_base_collection()
+    import audit_agent.tools.tls_check as tls_mod
+
+    async def fake_tls_check(domain: str, port: int = 443, timeout: float = 10.0) -> dict:
+        return {"domain": domain, "reachable": True, "days_left": 90, "issuer": "x"}
+
+    monkeypatch.setattr(tls_mod, "tls_check", fake_tls_check)
+    done = FakeResponse(content=[TextBlock(text="Nothing more to check.")])
+    fake = FakeAnthropic([done])
+    monkeypatch.setattr(agent_mod, "AsyncAnthropic", fake)
+
+    result = await agent_mod.run_agent(
+        "https://example.com", settings=_settings(max_tool_calls=20), active=True
+    )
+
+    offered = {t["name"] for t in fake.messages.calls[0]["tools"]}
+    assert {"injection_probe", "error_handling_probe", "access_probe"} <= offered
+    ran_at_start = {t["tool"] for t in result["run"]["trace"] if t["iteration"] == 0}
+    assert {"injection_probe", "error_handling_probe", "access_probe"} <= ran_at_start
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_active_probes_are_not_offered_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_base_collection()
+    import audit_agent.tools.tls_check as tls_mod
+
+    async def fake_tls_check(domain: str, port: int = 443, timeout: float = 10.0) -> dict:
+        return {"domain": domain, "reachable": True, "days_left": 90, "issuer": "x"}
+
+    monkeypatch.setattr(tls_mod, "tls_check", fake_tls_check)
+    done = FakeResponse(content=[TextBlock(text="Nothing more to check.")])
+    fake = FakeAnthropic([done])
+    monkeypatch.setattr(agent_mod, "AsyncAnthropic", fake)
+
+    await agent_mod.run_agent("https://example.com", settings=_settings())
+
+    offered = {t["name"] for t in fake.messages.calls[0]["tools"]}
+    assert not {"injection_probe", "error_handling_probe", "access_probe"} & offered

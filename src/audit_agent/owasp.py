@@ -31,6 +31,9 @@ TOOL_TO_OWASP: dict[str, tuple[str, ...]] = {
     "vuln_check": ("A03:2025",),
     "auth_probe": ("A07:2025",),
     "integrity_probe": ("A08:2025",),
+    "access_probe": ("A01:2025",),
+    "injection_probe": ("A05:2025",),
+    "error_handling_probe": ("A10:2025",),
 }
 
 

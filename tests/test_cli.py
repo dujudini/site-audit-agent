@@ -43,7 +43,7 @@ def test_audit_refuses_without_authorization_flag(monkeypatch: pytest.MonkeyPatc
 
 
 def test_audit_runs_with_authorization_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    async def fake_audit(url: str) -> Any:
+    async def fake_audit(url: str, active: bool) -> Any:
         return _empty_report(url), []
 
     monkeypatch.setattr(cli_mod, "_audit", fake_audit)

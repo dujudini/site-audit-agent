@@ -49,10 +49,10 @@ def probe(url: str) -> None:
     console.print(JSON.from_data(result))
 
 
-async def _audit(url: str) -> tuple[AuditReport, list[dict[str, Any]]]:
+async def _audit(url: str, active: bool) -> tuple[AuditReport, list[dict[str, Any]]]:
     settings = load_settings()
     recorder = RunRecorder()
-    result = await run_agent(url, settings, recorder)
+    result = await run_agent(url, settings, recorder, active=active)
     findings, dropped = await generate_findings(result["state"], settings, recorder=recorder)
 
     # Read after the findings call so the reported cost and tokens include it.
@@ -88,6 +88,16 @@ def audit(
         "--i-am-authorized",
         help="Confirm you own this site or have written permission to test it. Required.",
     ),
+    active: bool = typer.Option(
+        False,
+        "--active",
+        help=(
+            "Enable active probes (injection_probe, error_handling_probe, "
+            "access_probe): GET requests with unusual input, not plain "
+            "collection. Needs --i-am-authorized; a passive scan is not "
+            "enough authorization to run these."
+        ),
+    ),
     out: Path | None = typer.Option(None, help="Write Markdown report to this file."),
     json_out: Path | None = typer.Option(
         None, "--json-out", help="Write JSON report to this file."
@@ -98,7 +108,7 @@ def audit(
         typer.echo(AUTHORIZATION_REFUSAL, err=True)
         raise typer.Exit(code=2)
 
-    report, dropped = asyncio.run(_audit(url))
+    report, dropped = asyncio.run(_audit(url, active))
 
     render_terminal(console, report)
     if dropped:

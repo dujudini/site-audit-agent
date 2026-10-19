@@ -47,4 +47,5 @@ def test_markdown_lists_probed_and_unprobed_categories() -> None:
     md = render_markdown(report)
     assert "A04:2025 Cryptographic Failures: findings above" in md
     assert "A02:2025 Security Misconfiguration: probe available, no findings" in md
-    assert "A05:2025 Injection: no passive probe, not assessed" in md
+    assert "A05:2025 Injection: probe available, no findings (not run in this audit)" in md
+    assert "A09:2025 Security Logging and Alerting Failures: no passive probe, not assessed" in md
